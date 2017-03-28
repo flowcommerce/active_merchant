@@ -37,10 +37,18 @@ module ActiveMerchant
         direct_authorization_form = ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
         response = FlowCommerce.instance.authorizations.post(@flow_org, direct_authorization_form)
 
-        ap response
-
         if response.result.status.value == 'authorized'
-          Response.new(true, 'Flow authorize - Success')
+          # what store this in spree order object, for capure
+          store = {}
+          store[:authorization_id] = response.id
+          store[:currency]         = response.currency
+          store[:amount]           = response.amount
+          store[:key]              = response.key
+
+          @flow_authorization = store
+
+          # http://activemerchant.rubyforge.org/classes/ActiveMerchant/Billing/Response.html
+          Response.new(true, 'Flow authorize - Success', {}, { authorization: store })
         else
           Response.new(false, 'Flow authorize - Error')
         end
@@ -50,18 +58,18 @@ module ActiveMerchant
         binding.pry
       end
 
-    #   def capture(_money, authorization, options={})
-    #     raise 'capture'
-    #     # load order
-    #     order = get_spree_order options
+      def capture(_money, authorization, options={})
+        raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
 
-    #     # try to capture funds
-    #     order.flow_cc_capture
+        capture_form = ::Io::Flow::V0::Models::CaptureForm.new(authorization)
+        response     = FlowCommerce.instance.captures.post(@flow_org, capture_form)
 
-    #     ActiveMerchant::Billing::Response.new(true, 'Flow Gateway - Success')
-    #   rescue => ex
-    #     ActiveMerchant::Billing::Response.new(false, ex.message)
-    #   end
+        if response.id
+          Response.new(true, 'Flow capture - Success')
+        else
+          Response.new(false, 'Flow capture - Error')
+        end
+      end
 
     #   def refund(money, authorization, options={})
     #     raise 'refund'
@@ -79,14 +87,6 @@ module ActiveMerchant
         response = authorize money, credit_card
         capture money, response.authorization
       end
-
-    #   private
-
-    #   def get_spree_order(options)
-    #     order_number = options[:order_id].split('-').first
-
-    #     Spree::Order.find_by number: order_number
-    #   end
 
       private
 
