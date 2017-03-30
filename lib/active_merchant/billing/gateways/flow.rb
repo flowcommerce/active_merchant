@@ -4,6 +4,7 @@
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
+      VERSION = '0.0.1'
 
       self.display_name     = 'Flow.io Pay'
       self.homepage_url     = 'https://www.flow.io/'
@@ -19,13 +20,19 @@ module ActiveMerchant
         super
       end
 
+      # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
       def authorize(amount, payment_method, options={})
         get_flow_cc_token payment_method
+
+        # https://github.com/flowcommerce/json-reference/blob/master/data/final/currencies.json
+        # Currencies.must_fild
+        # lib-reference-ruby
+        raise ArgumentError, 'currency not provided' unless options[:currency]
 
         data = {
           token:    @flow_cc_token,
           amount:   (amount / 100.0).round(2),
-          currency: options[:currency] || self.default_currency,
+          currency: options[:currency],
           cvv:      payment_method.verification_value,
           customer: {
             name: {
@@ -34,6 +41,8 @@ module ActiveMerchant
             }
           }
         }
+
+        assert_currency data[:currency]
 
         begin
           direct_authorization_form = ::Io::Flow::V0::Models::DirectAuthorizationForm.new(data)
@@ -52,8 +61,6 @@ module ActiveMerchant
           store[:amount]           = response.amount
           store[:key]              = response.key
 
-          @flow_authorization = store
-
           Response.new(true, 'Flow authorize - Success', options, { authorization: store })
         else
           Response.new(false, 'Flow authorize - Error', options)
@@ -64,6 +71,7 @@ module ActiveMerchant
         Response.new(true)
       end
 
+      # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
       def capture(_money, authorization, options={})
         raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
 
@@ -83,8 +91,8 @@ module ActiveMerchant
         end
       end
 
+      # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
       def void(money, authorization_key, options={})
-        # authorization_key ||= @flow_authorization[:key]
         begin
           flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
           Response.new(true, 'success')
@@ -94,12 +102,35 @@ module ActiveMerchant
       end
 
       def purchase(money, credit_card, options={})
-        response = authorize money, credit_card
+        response = authorize money, credit_card, options
         capture money, response.authorization
       end
 
-      #  def refund(money, authorization, options={})
-      #  end
+      # https://docs.flow.io/module/payment/resource/refunds
+      # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
+      # capture_id       - The Id of the capture against which to issue the refund. If specified, we will only consider this capture.
+      # order_number     - The order number if specified during authorization. If specified, we will lookup all authorizations made against this order number, and then selecting 1 or more authorizations against which to issue the refund of the requested amount.
+      # key              - Your unique identifier for this transaction, which if provided is used to implement idempotency. If not provided, we will assign.
+      # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
+      # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
+      # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
+      def refund(amount, capture_id, options={})
+        refund_form = {}
+        refund_form[:amount]     = amount if amount
+        refund_form[:capture_id] = capture_id if capture_id
+
+        [:authorization_id, :currency, :order_number, :key, :rma_key].each do |key|
+          refund_form[key] = options[key] if options[key]
+        end
+
+        if refund_form[:amount]
+          raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
+          assert_currency refund_form[:currency]
+        end
+
+        refund_form = ::Io::Flow::V0::Models::RefundForm.new(refund_form)
+        flow_instance.refunds.post(@flow_organization, refund_form)
+      end
 
       private
 
@@ -126,6 +157,10 @@ module ActiveMerchant
       def error_response(exception_object, message=nil)
         message ||= exception_object.message
         Response.new(false, message, exception: exception_object)
+      end
+
+      def assert_currency(code)
+        true
       end
     end
   end
