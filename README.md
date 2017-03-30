@@ -4,8 +4,9 @@
 
 We need to complete this simple steps
 
+1. add in config ```Rails.application.config.spree.payment_methods << Spree::Gateway::Flow```
 1. authorize the credit card
-2. capture payments with authorization tokens
+1. capture payments with authorization tokens
 
 ### Creating Flow authorization tokens
 
