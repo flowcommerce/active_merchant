@@ -23,9 +23,19 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     )
   }
 
+  it 'checks for authorize and capture' do
+    # Authorize $10 from the credit card
+    auth_response    = gateway.authorize(amount, credit_card, currency: 'USD')
+
+    # Capture $10 from the credit card
+    capture_response = gateway.capture(amount, auth_response.authorization)
+
+    expect(capture_response.success?).to eq(true)
+  end
+
   it 'checks for purchase ability' do
     # Validating the card automatically detects the card type
-    expect(credit_card.validate.empty?).to eq(true)
+    # expect(credit_card.validate.empty?).to eq(true)
 
     # Capture $10 from the credit card
     response = gateway.purchase(amount, credit_card, currency: 'USD')
