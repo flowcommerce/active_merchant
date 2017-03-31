@@ -162,8 +162,8 @@ module ActiveMerchant
       end
 
       def assert_currency(currency, amount)
-        currency_model = ::Io::Flow::Reference::V0::Models::Currency.find!(currency)
-        currency_model.number_decimals == 2 ? (amount / 100.0).round(2) : amount.to_f
+        currency_model = Flow::Reference::Currencies.find!(currency)
+        currency_model.to_cents(amount).to_f
       end
     end
   end
