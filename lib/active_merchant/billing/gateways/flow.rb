@@ -1,10 +1,12 @@
 # @Flow.io (2017)
 # Active Merchant adapter for Flow api
 
+require 'flow-reference'
+
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
-      VERSION = '0.0.1'
+      VERSION = '0.0.1' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
       self.display_name     = 'Flow.io Pay'
       self.homepage_url     = 'https://www.flow.io/'
@@ -22,6 +24,8 @@ module ActiveMerchant
 
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
       def authorize(amount, payment_method, options={})
+        amount = assert_currency(options[:currency], amount)
+
         get_flow_cc_token payment_method
 
         # https://github.com/flowcommerce/json-reference/blob/master/data/final/currencies.json
@@ -31,7 +35,7 @@ module ActiveMerchant
 
         data = {
           token:    @flow_cc_token,
-          amount:   (amount / 100.0).round(2),
+          amount:   amount,
           currency: options[:currency],
           cvv:      payment_method.verification_value,
           customer: {
@@ -42,13 +46,11 @@ module ActiveMerchant
           }
         }
 
-        assert_currency data[:currency]
-
         begin
           direct_authorization_form = ::Io::Flow::V0::Models::DirectAuthorizationForm.new(data)
           response = flow_instance.authorizations.post(@flow_organization, direct_authorization_form)
         rescue => exception
-          return Response.new(false, ex.message, { exception: exception })
+          return Response.new(false, exception.message, { exception: exception })
         end
 
         options = { response: response }
@@ -65,10 +67,6 @@ module ActiveMerchant
         else
           Response.new(false, 'Flow authorize - Error', options)
         end
-      end
-
-      def store(object, options={})
-        Response.new(true)
       end
 
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
@@ -91,6 +89,11 @@ module ActiveMerchant
         end
       end
 
+      def purchase(money, credit_card, options={})
+        response = authorize money, credit_card, options
+        capture money, response.authorization
+      end
+
       # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
       def void(money, authorization_key, options={})
         begin
@@ -99,11 +102,6 @@ module ActiveMerchant
         rescue Io::Flow::V0::HttpClient::ServerError => exception
           error_response(exception)
         end
-      end
-
-      def purchase(money, credit_card, options={})
-        response = authorize money, credit_card, options
-        capture money, response.authorization
       end
 
       # https://docs.flow.io/module/payment/resource/refunds
@@ -125,11 +123,15 @@ module ActiveMerchant
 
         if refund_form[:amount]
           raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
-          assert_currency refund_form[:currency]
+          refund_form[:amount] = assert_currency(refund_form[:currency], refund_form[:amount])
         end
 
         refund_form = ::Io::Flow::V0::Models::RefundForm.new(refund_form)
         flow_instance.refunds.post(@flow_organization, refund_form)
+      end
+
+      def store(object, options={})
+        Response.new(true)
       end
 
       private
@@ -159,9 +161,11 @@ module ActiveMerchant
         Response.new(false, message, exception: exception_object)
       end
 
-      def assert_currency(code)
-        true
+      def assert_currency(currency, amount)
+        currency_model = ::Io::Flow::Reference::V0::Models::Currency.find!(currency)
+        currency_model.number_decimals == 2 ? (amount / 100.0).round(2) : amount.to_f
       end
     end
   end
 end
+
