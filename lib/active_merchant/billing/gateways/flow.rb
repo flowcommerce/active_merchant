@@ -6,7 +6,7 @@ require 'flow-reference'
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
-      VERSION = '0.0.1' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
+      VERSION = '0.0.3' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
       self.display_name     = 'Flow.io Pay'
       self.homepage_url     = 'https://www.flow.io/'
