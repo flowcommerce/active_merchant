@@ -10,7 +10,7 @@ Gem::Specification.new 'activemerchant_flow' do |gem|
   gem.email       = 'reic.dino@gmail.com'
   gem.files       = Dir['./lib/**/*.rb']
 
-  gem.add_runtime_dependency 'activemerchant'
-  gem.add_runtime_dependency 'flowcommerce'
-  gem.add_runtime_dependency 'flow-reference'
+  gem.add_runtime_dependency 'activemerchant', '~> 1.63.0'
+  gem.add_runtime_dependency 'flowcommerce', '~> 0'
+  gem.add_runtime_dependency 'flow-reference', '~> 0'
 end

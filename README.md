@@ -2,7 +2,8 @@
 
 ## Use cases
 
-Authorize and capture payments with flow, in any currency, anywhere in the world.
+Authorize and capture payments with Flow.io, in any currency, anywhere in the world.
+
 More on http://www.flow.io
 
 ## Example
@@ -51,9 +52,18 @@ In config/application.rb add
   end
 ```
 
-## Tips and tricks
+## Using the ActiveMerchant::Billing::FlowGateway
 
-### Reading Flow raw api response
+Require activemerchant_flow gem and initialize the gateway
+
+```
+require 'activemerchant_flow'
+
+gateway = ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION'))
+```
+
+
+## Reading Flow raw api response
 
 For all Active Merchant responses, raw response object is stored in params['response'].
 
