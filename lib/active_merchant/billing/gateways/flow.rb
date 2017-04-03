@@ -1,4 +1,4 @@
-@flow_cc_token# @Flow.io (2017)
+# @Flow.io (2017)
 # Active Merchant adapter for Flow api
 
 require 'flow-reference'
