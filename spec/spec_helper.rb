@@ -9,6 +9,7 @@ require 'flowcommerce'
 require 'dotenv'
 require 'pry'
 require 'awesome_print'
+require 'digest'
 
 Dotenv.load
 

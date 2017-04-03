@@ -81,4 +81,16 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(response.id.include?('ref-')).to eq(true)
   end
 
+  it 'checks storage of credit card' do
+    response = gateway.store(credit_card)
+    expect(response.success?).to eq(true)
+    expect(response.params['token'].length).to eq(64)
+  end
+
+  # it 'checks creation of MerchantOfRecordAuthorizationForm if order_id is present' do
+  #   auth_response    = gateway.authorize(amount, credit_card, currency: 'USD', order_id: order_id)
+  #   capture_response = gateway.capture(amount, auth_response.authorization)
+  #   expect(capture_response.success?).to eq(true)
+  # end
+
 end

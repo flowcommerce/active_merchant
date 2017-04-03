@@ -1,4 +1,4 @@
-# @Flow.io (2017)
+@flow_cc_token# @Flow.io (2017)
 # Active Merchant adapter for Flow api
 
 require 'flow-reference'
@@ -6,7 +6,7 @@ require 'flow-reference'
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
-      VERSION = '0.0.3' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
+      VERSION = '0.0.4' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
       self.display_name     = 'Flow.io Pay'
       self.homepage_url     = 'https://www.flow.io/'
@@ -16,7 +16,7 @@ module ActiveMerchant
         @flow_api_key      = options[:api_key]      || ENV['FLOW_API_KEY']
         @flow_organization = options[:organization] || ENV['FLOW_ORGANIZATION']
 
-        raise ArgumentError, "Flow token is not defined (:apy_key or ENV['FLOW_API_KEY'])" unless @flow_api_key
+        raise ArgumentError, "Flow token is not defined (:api_key or ENV['FLOW_API_KEY'])" unless @flow_api_key
         raise ArgumentError, "Flow organization is not defined (:organization or ENV['FLOW_ORGANIZATION'])" unless @flow_organization
 
         super
@@ -27,11 +27,6 @@ module ActiveMerchant
         amount = assert_currency(options[:currency], amount)
 
         get_flow_cc_token payment_method
-
-        # https://github.com/flowcommerce/json-reference/blob/master/data/final/currencies.json
-        # Currencies.must_fild
-        # lib-reference-ruby
-        raise ArgumentError, 'currency not provided' unless options[:currency]
 
         data = {
           token:    @flow_cc_token,
@@ -47,8 +42,14 @@ module ActiveMerchant
         }
 
         begin
-          direct_authorization_form = ::Io::Flow::V0::Models::DirectAuthorizationForm.new(data)
-          response = flow_instance.authorizations.post(@flow_organization, direct_authorization_form)
+          authorization_form = if options[:order_id]
+            # order_number allready present at flow
+            data[:order_number] = options[:order_id]
+            ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new(data)
+          else
+            ::Io::Flow::V0::Models::DirectAuthorizationForm.new(data)
+          end
+          response = flow_instance.authorizations.post(@flow_organization, authorization_form)
         rescue => exception
           return Response.new(false, exception.message, { exception: exception })
         end
@@ -56,7 +57,6 @@ module ActiveMerchant
         options = { response: response }
 
         if response.result.status.value == 'authorized'
-          # what store this in spree order object, for capure
           store = {}
           store[:authorization_id] = response.id
           store[:currency]         = response.currency
@@ -130,8 +130,12 @@ module ActiveMerchant
         flow_instance.refunds.post(@flow_organization, refund_form)
       end
 
-      def store(object, options={})
-        Response.new(true)
+      # store credit card with flow and get reference token
+      def store(credit_card, options={})
+        token = get_flow_cc_token(credit_card)
+        Response.new(true, 'Credit card stored', { token: token })
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response(exception)
       end
 
       private
@@ -162,6 +166,7 @@ module ActiveMerchant
       end
 
       def assert_currency(currency, amount)
+        raise ArgumentError, 'currency not provided' unless currency
         currency_model = Flow::Reference::Currencies.find!(currency)
         currency_model.to_cents(amount).to_f
       end
