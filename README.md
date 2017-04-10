@@ -2,7 +2,6 @@
 
 # Flow.io adapter for ActiveMerchant
 
-
 Authorize and capture payments with Flow.io, in any currency, anywhere in the world.
 
 More on http://www.flow.io
@@ -61,7 +60,7 @@ Require activemerchant_flow gem and initialize the gateway
 
 ```
   require 'activemerchant_flow'
- 
+
   gateway = ActiveMerchant::Billing::FlowGateway.new(
     token: ENV.fetch('FLOW_API_KEY'),
     organization: ENV.fetch('FLOW_ORGANIZATION')
@@ -88,11 +87,11 @@ or
 
 ```
   response = gateway.purchase(amount, credit_card, currency: 'USD')
-``` 
+```
 
 ### void - cancel transaction
 
-For purchase order cancelation, you need authorization key from Flow. You will find it in 
+For purchase order cancelation, you need authorization key from Flow. You will find it in
 
 ```
    authorization_key  = authorize_response.params['response'].key
@@ -121,7 +120,7 @@ If error accurs, response message will be error message only. Complete error obj
 will be sent as option parameter named exception. am_response.success? will be false on failed
 requests.
 
-Response object will 
+Response object will
 
 ## Contributing
 

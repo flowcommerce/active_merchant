@@ -96,12 +96,10 @@ module ActiveMerchant
 
       # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
       def void(money, authorization_key, options={})
-        begin
-          flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
-          Response.new(true, 'success')
-        rescue Io::Flow::V0::HttpClient::ServerError => exception
-          error_response(exception)
-        end
+        flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
+        Response.new(true, 'success')
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response(exception)
       end
 
       # https://docs.flow.io/module/payment/resource/refunds

@@ -23,7 +23,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     )
   }
 
-  it 'checks for authorize and capture' do
+  it 'checks for authorize and capture ability' do
     # Authorize $10 from the credit card
     auth_response    = gateway.authorize(amount, credit_card, currency: 'USD')
 
