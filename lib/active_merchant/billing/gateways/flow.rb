@@ -8,9 +8,11 @@ module ActiveMerchant
     class FlowGateway < Gateway
       VERSION = '0.0.4' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
-      self.display_name     = 'Flow.io Pay'
-      self.homepage_url     = 'https://www.flow.io/'
-      self.default_currency = 'USD'
+      self.display_name        = 'Flow.io Pay'
+      self.homepage_url        = 'https://www.flow.io/'
+      self.default_currency    = 'USD'
+      self.supported_countries = %w(AL DZ AS AD AI AG AR AM AW AU AT AZ BS BH BD BB BE BZ BJ BM BT BO BQ BA BW BR VG BN BG BF CV KH CM CA KY CF TD CL CN HK MO CO KM CG CK CR HR CW CY CZ CI DK DJ DM DO EC EG SV GQ EE ET FK FJ FI FR GF PF GA GM GE DE GH GI GR GL GD GP GU GT GG GN GW GY HT VA HN HU IS IN ID IE IM IL IT JM JP JE JO KZ KE KI KW KG LA LV LB LS LY LI LT LU MW MY MV ML MT MH MQ MR MU YT MX FM MC MN ME MS MA NA NR NP NL NC NZ NI NE NG NU NF MP NO OM PK PW PA PG PY PE PH PN PL PT PR QA KR MD RO RU RW RE BL SH KN LC MF PM VC WS SM ST SA SN RS SC SL SG SX SK SI SB SO ZA ES LK SJ SZ SE CH TW TH TL TG TK TO TT TN TR TC TV UG UA AE GB TZ US VI UY UZ VU VE VN WF EH YE ZM AX)
+      self.supported_cardtypes = [:american_express, :cartes_bancaires, :china_union_pay, :dankort, :diners_club, :discover, :jcb, :maestro, :mastercard, :paypal, :visa]
 
       def initialize(options = {})
         @flow_api_key      = options[:api_key]      || ENV['FLOW_API_KEY']
