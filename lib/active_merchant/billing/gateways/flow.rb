@@ -98,8 +98,8 @@ module ActiveMerchant
 
       # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
       def void(money, authorization_key, options={})
-        flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
-        Response.new(true, 'success')
+        response = flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
+        Response.new(true, 'void success', { response: response })
       rescue Io::Flow::V0::HttpClient::ServerError => exception
         error_response(exception)
       end
@@ -160,8 +160,14 @@ module ActiveMerchant
         @flow_cc_token = result.token
       end
 
-      def error_response(exception_object, message=nil)
-        message ||= exception_object.message
+      def error_response(exception_object)
+        message = if exception_object.respond_to?(:body) && exception_object.body.length > 0
+          description  = JSON.load(exception_object.body)['messages'].to_sentence
+          '%s: %s (%s)' % [exception_object.details, description, exception_object.code]
+        else
+          exception_object.message
+        end
+
         Response.new(false, message, exception: exception_object)
       end
 
