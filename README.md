@@ -2,19 +2,49 @@
 
 # Flow.io adapter for ActiveMerchant
 
+[Website](https://www.flow.io/) | [Conslole](https://console.flow.io/) | [Docs](https://docs.flow.io/)
+
 Authorize and capture payments with Flow.io, in any currency, anywhere in the world.
 
-More on http://www.flow.io
+More on [https://www.flow.io](https://www.flow.io)
+
+## Getting Started
+
+Gem requires Ruby version ```>= 2.2.2.```
+
+1. Install adapter at the command prompt :
+
+	```
+	 $ gem install flowcommerce-activemerchant
+	```
+
+1. Add to your application following ENV variables
+
+	```FLOW_API_KEY```, ```FLOW_ORGANIZATION``` and ```FLOW_BASE_COUNTRY```
+	
+	For testing you can use Flow sandbox values
+
+	```
+	FLOW_ORGANIZATION='playground'
+	FLOW_API_KEY='HlGgfflLamiTQJ'
+	FLOW_BASE_COUNTRY='usa'
+	```
+
+1. Clone the repository
+
+	```git clone https://github.com/flowcommerce/active_merchant.git```
+	
+	run tests with `rspec`
+	
+	Find examples of all available adapter actions in `./spec/flow` folder.
+
 
 ## Example
 
-```
-  # unless ENV['FLOW_API_KEY']
-  #  require 'dotenv'
-  #  Dotenv.load
-  # end
+Run example with Flow sandbox values
 
-  require 'activemerchant_flow'
+```
+  require 'flowcommerce-activemerchant'
 
   amount = 1000 # $10.00
 
@@ -40,26 +70,12 @@ More on http://www.flow.io
 
 ```
 
-## To enable payments in Solidus / Spree
-
-Aditional to installing activemerchant_flow gem we need to install Solidus/Spree gateway adapter
-
-In config/application.rb add
-
-```
-  config.after_initialize do |app|
-    app.config.spree.payment_methods << Spree::Gateway::Flow
-  end
-```
-
-Plest contact Flow.io for more details.
-
 ## Using the ActiveMerchant::Billing::FlowGateway
 
-Require activemerchant_flow gem and initialize the gateway
+Require gem and initialize the gateway
 
 ```
-  require 'activemerchant_flow'
+  require 'flowcommerce-activemerchant'
 
   gateway = ActiveMerchant::Billing::FlowGateway.new(
     token: ENV.fetch('FLOW_API_KEY'),
@@ -107,6 +123,16 @@ For purchase order cancelation, you need authorization key from Flow. You will f
   response = gateway.refund(nil, nil, authorization_id: auth_id)
 ```
 
+### tokenize credit card
+
+```
+  response = gateway.store(credit_card)
+  expect(response.success?).to eq(true)
+  expect(response.params['token'].length).to eq(64)
+```
+
+
+
 ## Reading raw Flow API response
 
 For all Active Merchant responses, raw response object is stored in params['response'].
@@ -116,16 +142,22 @@ For all Active Merchant responses, raw response object is stored in params['resp
   am_response.params['response'] == Io::Flow::V0::Models::Authorization # true
 ```
 
-If error accurs, response message will be error message only. Complete error object
-will be sent as option parameter named exception. am_response.success? will be false on failed
+In case of an error, response message will be error message only. Complete error object
+will be sent as option parameter named ```exception```. am_response.success? will be false on failed
 requests.
 
-Response object will
-
 ## Contributing
+
+Feel free to email us at tech@flow.io
+
+or
 
 * Fork it
 * Create your feature branch (git checkout -b my-new-feature)
 * Commit your changes (git commit -am 'Add some feature')
 * Push to the branch (git push origin my-new-feature)
 * Create new Pull Request
+
+## License
+
+ActiveMerchant Flow adapter is released under the MIT License.
