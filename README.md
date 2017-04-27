@@ -20,22 +20,21 @@ Gem requires Ruby version ```>= 2.2.2.```
 
 1. Add to your application following ENV variables
 
-	```FLOW_API_KEY```, ```FLOW_ORGANIZATION``` and ```FLOW_BASE_COUNTRY```
-	
+	```FLOW_API_KEY``` and ```FLOW_ORGANIZATION```
+
 	For testing you can use Flow sandbox values
 
 	```
 	FLOW_ORGANIZATION='playground'
 	FLOW_API_KEY='HlGgfflLamiTQJ'
-	FLOW_BASE_COUNTRY='usa'
 	```
 
 1. Clone the repository
 
 	```git clone https://github.com/flowcommerce/active_merchant.git```
-	
+
 	run tests with `rspec`
-	
+
 	Find examples of all available adapter actions in `./spec/flow` folder.
 
 
