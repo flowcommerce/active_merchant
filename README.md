@@ -160,4 +160,4 @@ or
 
 ## License
 
-ActiveMerchant Flow adapter is released under the (MIT License)[].
+ActiveMerchant Flow adapter is released under the [MIT License](https://github.com/flowcommerce/active_merchant/blob/master/LICENSE).
