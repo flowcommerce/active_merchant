@@ -59,11 +59,11 @@ module ActiveMerchant
         options = { response: response }
 
         if response.result.status.value == 'authorized'
-          store = {}
-          store[:authorization_id] = response.id
-          store[:currency]         = response.currency
-          store[:amount]           = response.amount
-          store[:key]              = response.key
+          store = {      key: response.key,
+                      amount: response.amount,
+                    currency: response.currency,
+            authorization_id: response.id
+          }
 
           Response.new true, 'Flow authorize - Success', options, { authorization: store }
         else
@@ -147,14 +147,15 @@ module ActiveMerchant
       def get_flow_cc_token credit_card
         return @card_response if @card_response
 
-        data = {}
-        data[:number]           = credit_card.number
-        data[:name]             = '%s %s' % [credit_card.first_name, credit_card.last_name]
-        data[:cvv]              = credit_card.verification_value
-        data[:expiration_year]  = credit_card.year.to_i
-        data[:expiration_month] = credit_card.month.to_i
+        data = {    number: credit_card.number,
+                      name: '%s %s' % [credit_card.first_name, credit_card.last_name],
+                       cvv: credit_card.verification_value,
+           expiration_year: credit_card.year.to_i,
+          expiration_month: credit_card.month.to_i
+        }
 
-        card_form      = ::Io::Flow::V0::Models::CardForm.new data
+        card_form = ::Io::Flow::V0::Models::CardForm.new data
+
         @card_response = flow_instance.cards.post @flow_organization, card_form
       end
 
