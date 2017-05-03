@@ -14,7 +14,7 @@ module ActiveMerchant
       self.supported_countries = Flow::Reference::Countries::ISO_3166_2
       self.supported_cardtypes = Flow::Reference::PaymentMethods::SUPPORTED_CREDIT_CARDS
 
-      def initialize(options = {})
+      def initialize options = {}
         @flow_api_key      = options[:api_key]      || ENV['FLOW_API_KEY']
         @flow_organization = options[:organization] || ENV['FLOW_ORGANIZATION']
 
@@ -25,13 +25,13 @@ module ActiveMerchant
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
-      def authorize(amount, payment_method, options={})
-        amount = assert_currency(options[:currency], amount)
+      def authorize amount, payment_method, options={}
+        amount = assert_currency options[:currency], amount
 
-        get_flow_cc_token payment_method
+        response = get_flow_cc_token payment_method
 
         data = {
-          token:    @flow_cc_token,
+          token:    response.token,
           amount:   amount,
           currency: options[:currency],
           cvv:      payment_method.verification_value,
@@ -47,13 +47,13 @@ module ActiveMerchant
           authorization_form = if options[:order_id]
             # order_number allready present at flow
             data[:order_number] = options[:order_id]
-            ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new(data)
+            ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
           else
-            ::Io::Flow::V0::Models::DirectAuthorizationForm.new(data)
+            ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
           end
-          response = flow_instance.authorizations.post(@flow_organization, authorization_form)
+          response = flow_instance.authorizations.post @flow_organization, authorization_form
         rescue => exception
-          return Response.new(false, exception.message, { exception: exception })
+          return Response.new false, exception.message, { exception: exception }
         end
 
         options = { response: response }
@@ -65,41 +65,41 @@ module ActiveMerchant
           store[:amount]           = response.amount
           store[:key]              = response.key
 
-          Response.new(true, 'Flow authorize - Success', options, { authorization: store })
+          Response.new true, 'Flow authorize - Success', options, { authorization: store }
         else
-          Response.new(false, 'Flow authorize - Error', options)
+          Response.new false, 'Flow authorize - Error', options
         end
       end
 
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
-      def capture(_money, authorization, options={})
+      def capture _money, authorization, options={}
         raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
 
         begin
-          capture_form = ::Io::Flow::V0::Models::CaptureForm.new(authorization)
-          response     = flow_instance.captures.post(@flow_organization, capture_form)
+          capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
+          response     = flow_instance.captures.post @flow_organization, capture_form
         rescue => exception
-          error_response(exception)
+          error_response exception
         end
 
         options = { response: response }
 
         if response.id
-          Response.new(true, 'Flow capture - Success', options)
+          Response.new true, 'Flow capture - Success', options
         else
-          Response.new(false, 'Flow capture - Error', options)
+          Response.new false, 'Flow capture - Error', options
         end
       end
 
-      def purchase(money, credit_card, options={})
+      def purchase money, credit_card, options={}
         response = authorize money, credit_card, options
         capture money, response.authorization
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
-      def void(money, authorization_key, options={})
-        response = flow_instance.authorizations.delete_by_key(@flow_organization, authorization_key)
-        Response.new(true, 'void success', { response: response })
+      def void money, authorization_key, options={}
+        response = flow_instance.authorizations.delete_by_key @flow_organization, authorization_key
+        Response.new true, 'void success', { response: response }
       rescue Io::Flow::V0::HttpClient::ServerError => exception
         error_response(exception)
       end
@@ -112,7 +112,7 @@ module ActiveMerchant
       # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
       # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
       # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
-      def refund(amount, capture_id, options={})
+      def refund amount, capture_id, options={}
         refund_form = {}
         refund_form[:amount]     = amount if amount
         refund_form[:capture_id] = capture_id if capture_id
@@ -123,29 +123,29 @@ module ActiveMerchant
 
         if refund_form[:amount]
           raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
-          refund_form[:amount] = assert_currency(refund_form[:currency], refund_form[:amount])
+          refund_form[:amount] = assert_currency refund_form[:currency], refund_form[:amount]
         end
 
-        refund_form = ::Io::Flow::V0::Models::RefundForm.new(refund_form)
-        flow_instance.refunds.post(@flow_organization, refund_form)
+        refund_form = ::Io::Flow::V0::Models::RefundForm.new refund_form
+        flow_instance.refunds.post @flow_organization, refund_form
       end
 
       # store credit card with flow and get reference token
-      def store(credit_card, options={})
-        token = get_flow_cc_token(credit_card)
-        Response.new(true, 'Credit card stored', { token: token })
+      def store credit_card, options={}
+        response = get_flow_cc_token credit_card
+        Response.new true, 'Credit card stored', { response: response, token: response.token }
       rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response(exception)
+        error_response exception
       end
 
       private
 
       def flow_instance
-        FlowCommerce.instance(token: @flow_api_key)
+        FlowCommerce.instance token: @flow_api_key
       end
 
-      def get_flow_cc_token(credit_card)
-        return if @flow_cc_token
+      def get_flow_cc_token credit_card
+        return @card_response if @card_response
 
         data = {}
         data[:number]           = credit_card.number
@@ -154,13 +154,11 @@ module ActiveMerchant
         data[:expiration_year]  = credit_card.year.to_i
         data[:expiration_month] = credit_card.month.to_i
 
-        card_form = ::Io::Flow::V0::Models::CardForm.new(data)
-        result    = flow_instance.cards.post(@flow_organization, card_form)
-
-        @flow_cc_token = result.token
+        card_form      = ::Io::Flow::V0::Models::CardForm.new data
+        @card_response = flow_instance.cards.post @flow_organization, card_form
       end
 
-      def error_response(exception_object)
+      def error_response exception_object
         message = if exception_object.respond_to?(:body) && exception_object.body.length > 0
           description  = JSON.load(exception_object.body)['messages'].to_sentence
           '%s: %s (%s)' % [exception_object.details, description, exception_object.code]
@@ -168,12 +166,12 @@ module ActiveMerchant
           exception_object.message
         end
 
-        Response.new(false, message, exception: exception_object)
+        Response.new false, message, exception: exception_object
       end
 
-      def assert_currency(currency, amount)
+      def assert_currency currency, amount
         raise ArgumentError, 'currency not provided' unless currency
-        currency_model = Flow::Reference::Currencies.find!(currency)
+        currency_model = Flow::Reference::Currencies.find! currency
         currency_model.to_cents(amount).to_f
       end
     end

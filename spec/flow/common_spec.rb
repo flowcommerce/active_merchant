@@ -30,16 +30,16 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     # Capture $10 from the credit card
     capture_response = gateway.capture(amount, auth_response.authorization)
 
-    expect(capture_response.success?).to eq(true)
+    expect(capture_response.success?).to be_truthy
   end
 
   it 'checks for purchase ability' do
     # Validating the card automatically detects the card type
-    # expect(credit_card.validate.empty?).to eq(true)
+    # expect(credit_card.validate.empty?).to be_truthy
 
     # Capture $10 from the credit card
     response = gateway.purchase(amount, credit_card, currency: 'USD')
-    expect(response.success?).to eq(true)
+    expect(response.success?).to be_truthy
   end
 
   it 'deletes (voids) authorized transaction' do
@@ -47,7 +47,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
     authorization_key = result.params['response'].key
 
-    expect(authorization_key.length > 30).to eq(true)
+    expect(authorization_key.length > 30).to be_truthy
 
     # we should be able to delete authorized transaction
     response = gateway.void(nil, authorization_key)
@@ -62,10 +62,10 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     response   = gateway.purchase(amount, credit_card, currency: 'USD')
     capture_id = response.params['response'].id
 
-    expect(capture_id.include?('cap-')).to eq(true)
+    expect(capture_id.include?('cap-')).to be_truthy
 
     response = gateway.refund(nil, capture_id)
-    expect(response.id.include?('ref-')).to eq(true)
+    expect(response.id.include?('ref-')).to be_truthy
 
     expect{ gateway.refund(nil, capture_id) }.to raise_error(Io::Flow::V0::HttpClient::ServerError)
   end
@@ -75,22 +75,23 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     gateway.capture amount, auth_response.authorization
 
     auth_id = auth_response.params['response'].id
-    expect(auth_id.include?('aut-')).to eq(true)
+    expect(auth_id.include?('aut-')).to be_truthy
 
     response = gateway.refund(nil, nil, authorization_id: auth_id)
-    expect(response.id.include?('ref-')).to eq(true)
+    expect(response.id.include?('ref-')).to be_truthy
   end
 
   it 'checks storage of credit card' do
     response = gateway.store(credit_card)
-    expect(response.success?).to eq(true)
+    expect(response.success?).to be_truthy
     expect(response.params['token'].length).to eq(64)
+    expect(response.params['response'].id.include?('crd-')).to be_truthy
   end
 
   # it 'checks creation of MerchantOfRecordAuthorizationForm if order_id is present' do
   #   auth_response    = gateway.authorize(amount, credit_card, currency: 'USD', order_id: order_id)
   #   capture_response = gateway.capture(amount, auth_response.authorization)
-  #   expect(capture_response.success?).to eq(true)
+  #   expect(capture_response.success?).to be_truthy
   # end
 
 end
