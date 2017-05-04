@@ -6,7 +6,7 @@ require 'flow-reference'
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
-      VERSION = '0.0.6' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
+      VERSION = '0.0.7' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
       self.display_name        = 'Flow.io Pay'
       self.homepage_url        = 'https://www.flow.io/'
@@ -145,8 +145,6 @@ module ActiveMerchant
       end
 
       def get_flow_cc_token credit_card
-        return @card_response if @card_response
-
         data = {    number: credit_card.number,
                       name: '%s %s' % [credit_card.first_name, credit_card.last_name],
                        cvv: credit_card.verification_value,
@@ -155,8 +153,7 @@ module ActiveMerchant
         }
 
         card_form = ::Io::Flow::V0::Models::CardForm.new data
-
-        @card_response = flow_instance.cards.post @flow_organization, card_form
+        flow_instance.cards.post @flow_organization, card_form
       end
 
       def error_response exception_object
