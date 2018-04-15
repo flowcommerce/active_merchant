@@ -62,7 +62,7 @@ Run example with Flow sandbox values
 
   auth_response = gateway.authorize(amount, credit_card, currency: 'USD')
 
-  # # Capture $10 from the credit card
+  # Capture funds
   capture_response = gateway.capture(amount, auth_response.authorization)
 
   puts capture_response.success? # true
