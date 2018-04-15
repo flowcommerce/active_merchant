@@ -41,6 +41,8 @@ if modified
   File.open(file, 'w') { |out| out << lines.join("") }
   cmd = "git commit -m 'Update version to #{next_version}' #{path}"
   system(cmd)
+  cmd = "git push"
+  system(cmd)
   puts "Updated #{path} to latest version: #{next_version}"
 else
   puts "File #{path} already points to latest version: #{next_version}"
