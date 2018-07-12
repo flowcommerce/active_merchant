@@ -18,7 +18,7 @@ GEM
     concurrent-ruby (1.0.5)
     diff-lcs (1.3)
     dotenv (2.2.0)
-    flow-reference (0.3.1)
+    flowcommerce-reference (0.4.6)
     flowcommerce (0.2.2)
       bigdecimal
       json
@@ -58,7 +58,7 @@ DEPENDENCIES
   activemerchant
   awesome_print
   dotenv
-  flow-reference
+  flowcommerce-reference
   flowcommerce
   pry
   rspec
