@@ -1,7 +1,7 @@
 # @Flow.io (2017)
 # Active Merchant adapter for Flow api
 
-require 'flow-reference'
+require 'flowcommerce-reference'
 
 module ActiveMerchant
   module Billing
@@ -11,8 +11,8 @@ module ActiveMerchant
       self.display_name        = 'Flow.io Pay'
       self.homepage_url        = 'https://www.flow.io/'
       self.default_currency    = 'USD'
-      self.supported_countries = Flow::Reference::Countries::ISO_3166_2
-      self.supported_cardtypes = Flow::Reference::PaymentMethods::SUPPORTED_CREDIT_CARDS
+      self.supported_countries = FlowCommerce::Reference::Countries::ISO_3166_2
+      self.supported_cardtypes = FlowCommerce::Reference::PaymentMethods::SUPPORTED_CREDIT_CARDS
 
       def initialize options = {}
         @flow_api_key      = options[:api_key]      || ENV['FLOW_API_KEY']
@@ -171,7 +171,7 @@ module ActiveMerchant
 
       def assert_currency currency, amount
         raise ArgumentError, 'currency not provided' unless currency
-        currency_model = Flow::Reference::Currencies.find! currency
+        currency_model = FlowCommerce::Reference::Currencies.find! currency
         currency_model.to_cents(amount).to_f
       end
     end
