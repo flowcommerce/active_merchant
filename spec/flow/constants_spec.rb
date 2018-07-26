@@ -5,7 +5,7 @@ require 'spec_helper'
 
 RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
-  it 'checks for validity of constants from flow-reference' do
+  it 'checks for validity of constants from flowcommerce-reference' do
     ref = ActiveMerchant::Billing::FlowGateway
 
     expect(ref.supported_countries.class).to eq(Array)
