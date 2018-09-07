@@ -171,7 +171,7 @@ module ActiveMerchant
 
       def assert_currency currency, amount
         raise ArgumentError, 'currency not provided' unless currency
-        currency_model = FlowCommerce::Reference::Currencies.find! currency
+        FlowCommerce::Reference::Currencies.find! currency
         amount.to_f
       end
     end
