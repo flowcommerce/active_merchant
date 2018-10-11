@@ -86,7 +86,7 @@ module ActiveMerchant
 
         options = { response: response }
 
-        if response.id
+        if response.try(:id)
           Response.new true, 'Flow capture - Success', options
         else
           Response.new false, 'Flow capture - Error', options
@@ -103,7 +103,7 @@ module ActiveMerchant
         response = flow_instance.authorizations.delete_by_key @flow_organization, authorization_key
         Response.new true, 'void success', { response: response }
       rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response(exception)
+        error_response exception
       end
 
       # https://docs.flow.io/module/payment/resource/refunds
@@ -165,6 +165,8 @@ module ActiveMerchant
         else
           exception_object.message
         end
+
+        ap [:error, message]
 
         Response.new false, message, exception: exception_object
       end
