@@ -6,32 +6,48 @@ require 'spec_helper'
 RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   # ActiveMerchant accepts all amounts as Integer values in cents
-  let(:amount) { 1000 } # $10.00
+  let(:amount) { 10 } # $10.00
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
 
-  let(:credit_card) {
+  let(:raw_credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
-    ActiveMerchant::Billing::CreditCard.new(
-      :first_name         => 'Joe',
-      :last_name          => 'Smith',
-      :number             => '4111111111111111',
-      :month              => '8',
-      :year               => 2020,
-      :verification_value => '737'
-    )
+    {
+      first_name:          'Joe',
+      last_name:           'Smith',
+      number:              '4111111111111111',
+      month:               '8',
+      year:                2020,
+      verification_value:  '737'
+    }
+  }
+
+  let(:credit_card) {
+    ActiveMerchant::Billing::CreditCard.new(raw_credit_card)
   }
 
   let(:flow_order) {
 
   }
 
+  ###
+
+  it 'to create valid credit card token' do
+    # test with cc as Hash or CreditCard instance
+    [credit_card, raw_credit_card].each do |cc|
+      cc_data = gateway.get_cc_token credit_card
+
+      expect(cc_data.type.value).to eq 'visa'
+      expect(cc_data.id[0,4]).to eq 'crd-'
+    end
+  end
+
   it 'checks for authorize and capture ability' do
     # Authorize $10 from the credit card
-    auth_response    = gateway.authorize(amount, credit_card, currency: 'USD')
+    auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
 
-    ap auth_response
+    expect(auth_response.message).to eq "Flow authorize - Success"
 
     # Capture $10 from the credit card
     capture_response = gateway.capture(amount, auth_response.authorization)

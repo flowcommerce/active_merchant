@@ -28,7 +28,7 @@ module ActiveMerchant
       def authorize amount, payment_method, options={}
         amount = assert_currency options[:currency], amount
 
-        response = get_flow_cc_token payment_method
+        response = get_cc_token payment_method
 
         data = {
           token:    response.token,
@@ -44,9 +44,9 @@ module ActiveMerchant
         }
 
         begin
-          authorization_form = if options[:order_id]
+          authorization_form = if options[:order_number]
               # order_number allready present at flow
-              data[:order_number] = options[:order_id]
+              data[:order_number] = options[:order_number]
               ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
             else
               ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
@@ -76,6 +76,8 @@ module ActiveMerchant
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
       def capture _money, authorization, options={}
         raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
+
+        # showm flow_instance.captures.class, :post
 
         begin
           capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
@@ -134,19 +136,18 @@ module ActiveMerchant
 
       # store credit card with flow and get reference token
       def store credit_card, options={}
-        response = get_flow_cc_token credit_card
+        response = get_cc_token credit_card
         Response.new true, 'Credit card stored', { response: response, token: response.token }
       rescue Io::Flow::V0::HttpClient::ServerError => exception
         error_response exception
       end
 
-      private
+      # get tokenized credit card, and use it for additional purchases
+      def get_cc_token credit_card
+        if credit_card.class === Hash
+          credit_card = ActiveMerchant::Billing::CreditCard.new credit_card
+        end
 
-      def flow_instance
-        FlowCommerce.instance token: @flow_api_key
-      end
-
-      def get_flow_cc_token credit_card
         data = {    number: credit_card.number,
                       name: '%s %s' % [credit_card.first_name, credit_card.last_name],
                        cvv: credit_card.verification_value,
@@ -156,6 +157,12 @@ module ActiveMerchant
 
         card_form = ::Io::Flow::V0::Models::CardForm.new data
         flow_instance.cards.post @flow_organization, card_form
+      end
+
+      private
+
+      def flow_instance
+        FlowCommerce.instance token: @flow_api_key
       end
 
       def error_response exception_object
