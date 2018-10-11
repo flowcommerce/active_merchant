@@ -14,18 +14,24 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   let(:credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
     ActiveMerchant::Billing::CreditCard.new(
-      :first_name         => 'Bob',
-      :last_name          => 'Bobsen',
+      :first_name         => 'Joe',
+      :last_name          => 'Smith',
       :number             => '4111111111111111',
       :month              => '8',
-      :year               => Time.now.year+1,
-      :verification_value => '123'
+      :year               => 2020,
+      :verification_value => '737'
     )
+  }
+
+  let(:flow_order) {
+
   }
 
   it 'checks for authorize and capture ability' do
     # Authorize $10 from the credit card
     auth_response    = gateway.authorize(amount, credit_card, currency: 'USD')
+
+    ap auth_response
 
     # Capture $10 from the credit card
     capture_response = gateway.capture(amount, auth_response.authorization)
