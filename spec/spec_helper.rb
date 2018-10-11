@@ -22,3 +22,16 @@ RSpec.configure do |config|
   config.tty = true
   config.formatter = :documentation
 end
+
+###
+
+# class Object
+#   # show method info
+#   def showm klass, m
+#     el = klass.instance_method(m)
+#     puts el.source_location.join(':').yellow
+#     puts '-'
+#     puts el.source
+#     nil
+#   end
+# end
