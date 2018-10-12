@@ -11,7 +11,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
   # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
-  let(:test_order_numer) { 'ord-9b90ba1968154432b7672c40942c1824' }
+  let(:test_order_number) { 'ord-9b90ba1968154432b7672c40942c1824' }
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
@@ -34,83 +34,100 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   ###
 
-  it 'to create valid credit card token' do
-    # test with cc as Hash or CreditCard instance
-    [credit_card, raw_credit_card].each do |cc|
-      cc_data = gateway.cc_with_token credit_card
+  # it 'to create valid credit card token' do
+  #   # test with cc as Hash or CreditCard instance
+  #   [credit_card, raw_credit_card].each do |cc|
+  #     cc_data = gateway.cc_with_token credit_card
 
-      expect(cc_data.type.value).to eq 'visa'
-      expect(cc_data.id[0,4]).to eq 'crd-'
-      expect(cc_data.token.length).to eq 64
-    end
+  #     expect(cc_data.type.value).to eq 'visa'
+  #     expect(cc_data.id[0,4]).to eq 'crd-'
+  #     expect(cc_data.token.length).to eq 64
+  #   end
+  # end
+
+  it 'authorizes allready created order' do
+    token = gateway.get_credit_card_token credit_card
+
+    expect(token.length).to eq(64)
+
+    response = gateway.flow_authorize_order token, test_order_number
+
+    expect(response.key.include?('aut-')).to be_truthy
   end
 
-  it 'checks create order, authorize and capture (if not in review) ability' do
-    # Authorize $10 from the credit card
-    # auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
+  it 'get flow authorization from order_number' do
+    response = gateway.flow_get_authorization order_number: test_order_number
 
-    expect(auth_response.message).to eq "Flow authorize - Success"
-
-    # Capture $10 from the credit card
-    capture_response = gateway.capture(amount, auth_response.authorization)
-
-    expect(capture_response.success?).to be_truthy
+    expect(response.key.include?('aut-')).to be_truthy
+    expect(['review', 'authorized'].include?(response.result.status.value)).to be_truthy
   end
 
-  it 'checks for purchase ability' do
-    # Validating the card automatically detects the card type
-    # expect(credit_card.validate.empty?).to be_truthy
+  # it 'checks create order, authorize and capture (if not in review) ability' do
+  #   # Authorize $10 from the credit card
+  #   # auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
 
-    # Capture $10 from the credit card
-    response = gateway.purchase(amount, credit_card, currency: 'USD')
-    expect(response.success?).to be_truthy
-  end
+  #   expect(auth_response.message).to eq "Flow authorize - Success"
 
-  it 'deletes (voids) authorized transaction' do
-    result = gateway.authorize(amount, credit_card, currency: 'USD')
+  #   # Capture $10 from the credit card
+  #   capture_response = gateway.capture(amount, auth_response.authorization)
 
-    authorization_key = result.params['response'].key
+  #   expect(capture_response.success?).to be_truthy
+  # end
 
-    expect(authorization_key.length > 30).to be_truthy
+  # it 'checks for purchase ability' do
+  #   # Validating the card automatically detects the card type
+  #   # expect(credit_card.validate.empty?).to be_truthy
 
-    # we should be able to delete authorized transaction
-    response = gateway.void(nil, authorization_key)
-    expect(response.success?).to be_truthy
+  #   # Capture $10 from the credit card
+  #   response = gateway.purchase(amount, credit_card, currency: 'USD')
+  #   expect(response.success?).to be_truthy
+  # end
 
-    # we allready deleted transaction, this should fail
-    response = gateway.void(nil, authorization_key)
-    expect(response.success?).to be_falsey
-  end
+  # it 'deletes (voids) authorized transaction' do
+  #   result = gateway.authorize(amount, credit_card, currency: 'USD')
 
-  it 'refunds the transaction by capture id' do
-    response   = gateway.purchase(amount, credit_card, currency: 'USD')
-    capture_id = response.params['response'].id
+  #   authorization_key = result.params['response'].key
 
-    expect(capture_id.include?('cap-')).to be_truthy
+  #   expect(authorization_key.length > 30).to be_truthy
 
-    response = gateway.refund(nil, capture_id)
-    expect(response.id.include?('ref-')).to be_truthy
+  #   # we should be able to delete authorized transaction
+  #   response = gateway.void(nil, authorization_key)
+  #   expect(response.success?).to be_truthy
 
-    expect{ gateway.refund(nil, capture_id) }.to raise_error(Io::Flow::V0::HttpClient::ServerError)
-  end
+  #   # we allready deleted transaction, this should fail
+  #   response = gateway.void(nil, authorization_key)
+  #   expect(response.success?).to be_falsey
+  # end
 
-  it 'refunds the transaction by authorization key' do
-    auth_response = gateway.authorize amount, credit_card, currency: 'USD'
-    gateway.capture amount, auth_response.authorization
+  # it 'refunds the transaction by capture id' do
+  #   response   = gateway.purchase(amount, credit_card, currency: 'USD')
+  #   capture_id = response.params['response'].id
 
-    auth_id = auth_response.params['response'].id
-    expect(auth_id.include?('aut-')).to be_truthy
+  #   expect(capture_id.include?('cap-')).to be_truthy
 
-    response = gateway.refund(nil, nil, authorization_id: auth_id)
-    expect(response.id.include?('ref-')).to be_truthy
-  end
+  #   response = gateway.refund(nil, capture_id)
+  #   expect(response.id.include?('ref-')).to be_truthy
 
-  it 'checks storage of credit card' do
-    response = gateway.store(credit_card)
-    expect(response.success?).to be_truthy
-    expect(response.params['token'].length).to eq(64)
-    expect(response.params['response'].id.include?('crd-')).to be_truthy
-  end
+  #   expect{ gateway.refund(nil, capture_id) }.to raise_error(Io::Flow::V0::HttpClient::ServerError)
+  # end
+
+  # it 'refunds the transaction by authorization key' do
+  #   auth_response = gateway.authorize amount, credit_card, currency: 'USD'
+  #   gateway.capture amount, auth_response.authorization
+
+  #   auth_id = auth_response.params['response'].id
+  #   expect(auth_id.include?('aut-')).to be_truthy
+
+  #   response = gateway.refund(nil, nil, authorization_id: auth_id)
+  #   expect(response.id.include?('ref-')).to be_truthy
+  # end
+
+  # it 'checks storage of credit card' do
+  #   response = gateway.store(credit_card)
+  #   expect(response.success?).to be_truthy
+  #   expect(response.params['token'].length).to eq(64)
+  #   expect(response.params['response'].id.include?('crd-')).to be_truthy
+  # end
 
   # it 'checks creation of MerchantOfRecordAuthorizationForm if order_id is present' do
   #   auth_response    = gateway.authorize(amount, credit_card, currency: 'USD', order_id: order_id)
