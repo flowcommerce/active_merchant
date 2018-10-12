@@ -90,15 +90,15 @@ module ActiveMerchant
 
         discriminator ||= 'merchant_of_record_authorization_form'
 
-        data = {
-            "token":        credit_card_token,
-            "order_number": order_number
+        body = {
+          token:        credit_card_token,
+          order_number: order_number
         }
 
         authorization_form = if discriminator.to_s.include?('merchant')
-          ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
+          ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new body
         else
-          ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
+          ::Io::Flow::V0::Models::DirectAuthorizationForm.new body
         end
 
         flow_instance.authorizations.post @flow_organization, authorization_form
@@ -109,30 +109,31 @@ module ActiveMerchant
         response.last
       end
 
-      # # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
-      # def capture _money, authorization, options={}
-      #   raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
+      # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
+      def capture amount, authorization_key, options={}
+        options[:currency] ||= 'USD'
 
-      #   capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
-      #   response     = flow_instance.captures.post @flow_organization, capture_form
+        body = {
+          authorization_id: authorization_key,
+          amount:           amount,
+          currency:         options[:currency]
+        }
 
-      #   # showm flow_instance.captures.class, :post
+        begin
+          capture_form = ::Io::Flow::V0::Models::CaptureForm.new body
+          response     = flow_instance.captures.post @flow_organization, capture_form
+        rescue => exception
+          error_response exception
+        end
 
-      #   begin
-      #     capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
-      #     response     = flow_instance.captures.post @flow_organization, capture_form
-      #   rescue => exception
-      #     error_response exception
-      #   end
+        options = { response: response }
 
-      #   options = { response: response }
-
-      #   if response.try(:id)
-      #     Response.new true, 'Flow capture - Success', options
-      #   else
-      #     Response.new false, 'Flow capture - Error', options
-      #   end
-      # end
+        if response.try(:id)
+          Response.new true, 'Flow capture - Success', options
+        else
+          Response.new false, 'Flow capture - Error', options
+        end
+      end
 
       # def purchase money, credit_card, options={}
       #   response = authorize money, credit_card, options

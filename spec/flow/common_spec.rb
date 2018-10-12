@@ -62,6 +62,16 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(['review', 'authorized'].include?(response.result.status.value)).to be_truthy
   end
 
+  it 'captures funds' do
+    authorization = gateway.flow_get_authorization order_number: test_order_number
+    response      = gateway.capture 1, authorization.key
+    capture       = response.params['response']
+
+    expect(capture.key.include?('cap-')).to be_truthy
+    expect(capture.authorization.key).to eq(authorization.key)
+    expect(capture.status.value).to eq('succeeded')
+  end
+
   # it 'checks create order, authorize and capture (if not in review) ability' do
   #   # Authorize $10 from the credit card
   #   # auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
