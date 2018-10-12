@@ -25,138 +25,171 @@ module ActiveMerchant
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
-      # 1. create credit card token
+      # 1. get credit card token
       # 2. create order
       # 3. order submission
       # 4. authorize with credit card token and order_number from step 2
-      def authorize amount, payment_method, options={}
-        amount = assert_currency options[:currency], amount
+      # def authorize amount, cc_or_token, options={}
+      #   amount = assert_currency options[:currency], amount
 
-        credit_card = cc_with_token payment_method
+      #   # 1. get credit card token
+      #   credit_card_token = if String == cc_or_token.class
+      #       cc_or_token
+      #     else
+      #       credit_card = cc_with_token payment_method
+      #       credit_card.token
+      #     end
+
+      #   # 2. create order
+
+      #   data = {
+      #     token:    credit_card.token,
+      #     amount:   amount,
+      #     currency: options[:currency],
+      #     cvv:      payment_method.verification_value,
+      #     customer: {
+      #       name: {
+      #         first: payment_method.first_name,
+      #         last: payment_method.last_name
+      #       }
+      #     }
+      #   }
+
+      #   begin
+      #     authorization_form = if options[:order_number]
+      #         # order_number allready present at flow
+      #         data[:order_number] = options[:order_number]
+      #         ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
+      #       else
+      #         ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
+      #       end
+
+      #     response = flow_instance.authorizations.post @flow_organization, authorization_form
+      #   rescue => exception
+      #     return Response.new false, exception.message, { exception: exception }
+      #   end
+
+      #   options = { response: response }
+
+      #   if ['review', 'authorized'].include?(response.result.status.value)
+      #     store = {
+      #                    key: response.key,
+      #                 amount: response.amount,
+      #               currency: response.currency,
+      #       authorization_id: response.id
+      #     }
+
+      #     Response.new true, 'Flow authorize - Success', options, { authorization: store }
+      #   else
+      #     Response.new false, 'Flow authorize - Error', options
+      #   end
+      # end
+
+      def flow_authorize_order cc_or_token, order_number, discriminator=nil
+        credit_card_token = cc_or_token
+
+        discriminator ||= 'merchant_of_record_authorization_form'
 
         data = {
-          token:    credit_card.token,
-          amount:   amount,
-          currency: options[:currency],
-          cvv:      payment_method.verification_value,
-          customer: {
-            name: {
-              first: payment_method.first_name,
-              last: payment_method.last_name
-            }
-          }
+            "token":        credit_card_token,
+            "order_number": order_number
         }
 
-        begin
-          authorization_form = if options[:order_number]
-              # order_number allready present at flow
-              data[:order_number] = options[:order_number]
-              ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
-            else
-              ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
-            end
-
-          response = flow_instance.authorizations.post @flow_organization, authorization_form
-        rescue => exception
-          return Response.new false, exception.message, { exception: exception }
-        end
-
-        options = { response: response }
-
-        if ['review', 'authorized'].include?(response.result.status.value)
-          store = {
-                         key: response.key,
-                      amount: response.amount,
-                    currency: response.currency,
-            authorization_id: response.id
-          }
-
-          Response.new true, 'Flow authorize - Success', options, { authorization: store }
+        authorization_form = if discriminator.to_s.include?('merchant')
+          ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
         else
-          Response.new false, 'Flow authorize - Error', options
-        end
-      end
-
-      # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
-      def capture _money, authorization, options={}
-        raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
-
-        capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
-        response     = flow_instance.captures.post @flow_organization, capture_form
-
-        puts response
-
-        exit
-
-        # showm flow_instance.captures.class, :post
-
-        begin
-          capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
-          response     = flow_instance.captures.post @flow_organization, capture_form
-        rescue => exception
-          error_response exception
+          ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
         end
 
-        options = { response: response }
-
-        if response.try(:id)
-          Response.new true, 'Flow capture - Success', options
-        else
-          Response.new false, 'Flow capture - Error', options
-        end
+        flow_instance.authorizations.post @flow_organization, authorization_form
       end
 
-      def purchase money, credit_card, options={}
-        response = authorize money, credit_card, options
-        capture money, response.authorization
+      def flow_get_authorization order_number:
+        response = flow_instance.authorizations.get @flow_organization, order_number: order_number
+        response.last
       end
 
-      # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
-      def void money, authorization_key, options={}
-        response = flow_instance.authorizations.delete_by_key @flow_organization, authorization_key
-        Response.new true, 'void success', { response: response }
-      rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response exception
-      end
+      # # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
+      # def capture _money, authorization, options={}
+      #   raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
 
-      # https://docs.flow.io/module/payment/resource/refunds
-      # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
-      # capture_id       - The Id of the capture against which to issue the refund. If specified, we will only consider this capture.
-      # order_number     - The order number if specified during authorization. If specified, we will lookup all authorizations made against this order number, and then selecting 1 or more authorizations against which to issue the refund of the requested amount.
-      # key              - Your unique identifier for this transaction, which if provided is used to implement idempotency. If not provided, we will assign.
-      # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
-      # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
-      # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
-      def refund amount, capture_id, options={}
-        refund_form = {}
-        refund_form[:amount]     = amount if amount
-        refund_form[:capture_id] = capture_id if capture_id
+      #   capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
+      #   response     = flow_instance.captures.post @flow_organization, capture_form
 
-        [:authorization_id, :currency, :order_number, :key, :rma_key].each do |key|
-          refund_form[key] = options[key] if options[key]
-        end
+      #   # showm flow_instance.captures.class, :post
 
-        if refund_form[:amount]
-          raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
-          refund_form[:amount] = assert_currency refund_form[:currency], refund_form[:amount]
-        end
+      #   begin
+      #     capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
+      #     response     = flow_instance.captures.post @flow_organization, capture_form
+      #   rescue => exception
+      #     error_response exception
+      #   end
 
-        refund_form = ::Io::Flow::V0::Models::RefundForm.new refund_form
-        flow_instance.refunds.post @flow_organization, refund_form
-      end
+      #   options = { response: response }
 
-      # store credit card with flow and get reference token
-      def store credit_card, options={}
-        response = cc_with_token credit_card
-        Response.new true, 'Credit card stored', { response: response, token: response.token }
-      rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response exception
-      end
+      #   if response.try(:id)
+      #     Response.new true, 'Flow capture - Success', options
+      #   else
+      #     Response.new false, 'Flow capture - Error', options
+      #   end
+      # end
 
-      # get tokenized credit card, and use it for additional purchases
-      def cc_with_token credit_card
-        if credit_card.class === Hash
-          credit_card = ActiveMerchant::Billing::CreditCard.new credit_card
+      # def purchase money, credit_card, options={}
+      #   response = authorize money, credit_card, options
+      #   capture money, response.authorization
+      # end
+
+      # # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
+      # def void money, authorization_key, options={}
+      #   response = flow_instance.authorizations.delete_by_key @flow_organization, authorization_key
+      #   Response.new true, 'void success', { response: response }
+      # rescue Io::Flow::V0::HttpClient::ServerError => exception
+      #   error_response exception
+      # end
+
+      # # https://docs.flow.io/module/payment/resource/refunds
+      # # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
+      # # capture_id       - The Id of the capture against which to issue the refund. If specified, we will only consider this capture.
+      # # order_number     - The order number if specified during authorization. If specified, we will lookup all authorizations made against this order number, and then selecting 1 or more authorizations against which to issue the refund of the requested amount.
+      # # key              - Your unique identifier for this transaction, which if provided is used to implement idempotency. If not provided, we will assign.
+      # # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
+      # # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
+      # # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
+      # def refund amount, capture_id, options={}
+      #   refund_form = {}
+      #   refund_form[:amount]     = amount if amount
+      #   refund_form[:capture_id] = capture_id if capture_id
+
+      #   [:authorization_id, :currency, :order_number, :key, :rma_key].each do |key|
+      #     refund_form[key] = options[key] if options[key]
+      #   end
+
+      #   if refund_form[:amount]
+      #     raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
+      #     refund_form[:amount] = assert_currency refund_form[:currency], refund_form[:amount]
+      #   end
+
+      #   refund_form = ::Io::Flow::V0::Models::RefundForm.new refund_form
+      #   flow_instance.refunds.post @flow_organization, refund_form
+      # end
+
+      # # store credit card with flow and get reference token
+      # def store credit_card, options={}
+      #   response = cc_with_token credit_card
+      #   Response.new true, 'Credit card stored', { response: response, token: response.token }
+      # rescue Io::Flow::V0::HttpClient::ServerError => exception
+      #   error_response exception
+      # end
+
+      def get_credit_card_token input
+        credit_card =
+        case input
+          when Hash
+            ActiveMerchant::Billing::CreditCard.new input
+          when ActiveMerchant::Billing::CreditCard
+            input
+          else
+            return input
         end
 
         data = {    number: credit_card.number,
@@ -167,7 +200,8 @@ module ActiveMerchant
         }
 
         card_form = ::Io::Flow::V0::Models::CardForm.new data
-        flow_instance.cards.post @flow_organization, card_form
+        response  = flow_instance.cards.post @flow_organization, card_form
+        response.token
       end
 
       private
