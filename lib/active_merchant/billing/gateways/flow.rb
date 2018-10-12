@@ -25,13 +25,17 @@ module ActiveMerchant
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
+      # 1. create credit card token
+      # 2. create order
+      # 3. order submission
+      # 4. authorize with credit card token and order_number from step 2
       def authorize amount, payment_method, options={}
         amount = assert_currency options[:currency], amount
 
-        response = get_cc_token payment_method
+        credit_card = cc_with_token payment_method
 
         data = {
-          token:    response.token,
+          token:    credit_card.token,
           amount:   amount,
           currency: options[:currency],
           cvv:      payment_method.verification_value,
@@ -76,6 +80,13 @@ module ActiveMerchant
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
       def capture _money, authorization, options={}
         raise ArgumentError, 'No Authorization authorization, please authorize first' unless authorization
+
+        capture_form = ::Io::Flow::V0::Models::CaptureForm.new authorization
+        response     = flow_instance.captures.post @flow_organization, capture_form
+
+        puts response
+
+        exit
 
         # showm flow_instance.captures.class, :post
 
@@ -136,14 +147,14 @@ module ActiveMerchant
 
       # store credit card with flow and get reference token
       def store credit_card, options={}
-        response = get_cc_token credit_card
+        response = cc_with_token credit_card
         Response.new true, 'Credit card stored', { response: response, token: response.token }
       rescue Io::Flow::V0::HttpClient::ServerError => exception
         error_response exception
       end
 
       # get tokenized credit card, and use it for additional purchases
-      def get_cc_token credit_card
+      def cc_with_token credit_card
         if credit_card.class === Hash
           credit_card = ActiveMerchant::Billing::CreditCard.new credit_card
         end

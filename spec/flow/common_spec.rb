@@ -6,7 +6,12 @@ require 'spec_helper'
 RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   # ActiveMerchant accepts all amounts as Integer values in cents
-  let(:amount) { 10 } # $10.00
+  let(:amount) { 1 } # $10.00
+
+  # pre-created order with some $ for testing purposes
+  # POST /orders                          - to create test order
+  # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
+  let(:test_order_numer) { 'ord-9b90ba1968154432b7672c40942c1824' }
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
@@ -14,8 +19,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   let(:raw_credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
     {
-      first_name:          'Joe',
-      last_name:           'Smith',
+      first_name:          'Dino',
+      last_name:           'Reic',
       number:              '4111111111111111',
       month:               '8',
       year:                2020,
@@ -27,25 +32,22 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     ActiveMerchant::Billing::CreditCard.new(raw_credit_card)
   }
 
-  let(:flow_order) {
-
-  }
-
   ###
 
   it 'to create valid credit card token' do
     # test with cc as Hash or CreditCard instance
     [credit_card, raw_credit_card].each do |cc|
-      cc_data = gateway.get_cc_token credit_card
+      cc_data = gateway.cc_with_token credit_card
 
       expect(cc_data.type.value).to eq 'visa'
       expect(cc_data.id[0,4]).to eq 'crd-'
+      expect(cc_data.token.length).to eq 64
     end
   end
 
-  it 'checks for authorize and capture ability' do
+  it 'checks create order, authorize and capture (if not in review) ability' do
     # Authorize $10 from the credit card
-    auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
+    # auth_response = gateway.authorize(amount, credit_card, currency: 'USD')#, order_number: 'ord-28bc0cc14db6433d8bdfa51ff6878511')
 
     expect(auth_response.message).to eq "Flow authorize - Success"
 
