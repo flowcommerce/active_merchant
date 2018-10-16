@@ -85,10 +85,10 @@ module ActiveMerchant
       #   end
       # end
 
-      def flow_authorize_order cc_or_token, order_number, discriminator=nil
-        credit_card_token = cc_or_token
+      def authorize cc_or_token, order_number, discriminator=nil
+        credit_card_token = store cc_or_token
 
-        discriminator ||= 'merchant_of_record_authorization_form'
+        discriminator ||= 'merchant_of_record'
 
         body = {
           token:        credit_card_token,
@@ -140,13 +140,23 @@ module ActiveMerchant
       #   capture money, response.authorization
       # end
 
-      # # https://docs.flow.io/module/payment/resource/authorizations#delete-organization-authorizations-key
-      # def void money, authorization_key, options={}
-      #   response = flow_instance.authorizations.delete_by_key @flow_organization, authorization_key
-      #   Response.new true, 'void success', { response: response }
-      # rescue Io::Flow::V0::HttpClient::ServerError => exception
-      #   error_response exception
-      # end
+      # https://docs.flow.io/module/payment/resource/reversals#post-organization-reversals
+      # if amount is not provided, reverse the full or remaining amount
+      def void amount, authorization_id, options={}
+        options[:authorization_id] = authorization_id
+
+        if amount
+          raise 'Currency must be specified when amount is specified' unless options[:currency]
+
+          options[:amount] = amount
+        end
+
+        response = flow_instance.reversals.post @flow_organization, options
+
+        Response.new true, 'void success', { response: response }
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
+      end
 
       # # https://docs.flow.io/module/payment/resource/refunds
       # # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
@@ -182,15 +192,18 @@ module ActiveMerchant
       #   error_response exception
       # end
 
-      def get_credit_card_token input
+      # stores credit card
+      def store input
         credit_card =
         case input
           when Hash
             ActiveMerchant::Billing::CreditCard.new input
           when ActiveMerchant::Billing::CreditCard
             input
-          else
+          when String
             return input
+          else
+            raise 'Unsuported store method input type [%s]' % input.class
         end
 
         data = {    number: credit_card.number,
@@ -219,7 +232,7 @@ module ActiveMerchant
           exception_object.message
         end
 
-        ap [:error, message]
+        puts 'ERROR: %s' % message
 
         Response.new false, message, exception: exception_object
       end

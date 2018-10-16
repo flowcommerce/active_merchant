@@ -11,7 +11,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
   # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
-  let(:test_order_number) { 'ord-9b90ba1968154432b7672c40942c1824' }
+  let(:test_order_number) { 'ord-e1e9d7aa0a0b41f6a01d8af14c1fd05b' }
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
@@ -46,11 +46,11 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # end
 
   it 'authorizes allready created order' do
-    token = gateway.get_credit_card_token credit_card
+    token = gateway.store credit_card
 
     expect(token.length).to eq(64)
 
-    response = gateway.flow_authorize_order token, test_order_number
+    response = gateway.authorize token, test_order_number
 
     expect(response.key.include?('aut-')).to be_truthy
   end
@@ -64,12 +64,23 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   it 'captures funds' do
     authorization = gateway.flow_get_authorization order_number: test_order_number
-    response      = gateway.capture 1, authorization.key
+    response      = gateway.capture 0.1, authorization.key
     capture       = response.params['response']
 
+    expect(capture.nil?).to be(false)
     expect(capture.key.include?('cap-')).to be_truthy
     expect(capture.authorization.key).to eq(authorization.key)
     expect(capture.status.value).to eq('succeeded')
+  end
+
+  it 'voids (cancels) the authorization' do
+    authorization = gateway.flow_get_authorization order_number: test_order_number
+
+    expect(authorization.key.include?('aut-')).to be(true)
+
+    response = gateway.void 0.1, authorization.key, currency: 'USD'
+
+    expect(response.params['response'].key.include?('rev-')).to be(true)
   end
 
   # it 'checks create order, authorize and capture (if not in review) ability' do
