@@ -34,16 +34,13 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   ###
 
-  # it 'to create valid credit card token' do
-  #   # test with cc as Hash or CreditCard instance
-  #   [credit_card, raw_credit_card].each do |cc|
-  #     cc_data = gateway.cc_with_token credit_card
-
-  #     expect(cc_data.type.value).to eq 'visa'
-  #     expect(cc_data.id[0,4]).to eq 'crd-'
-  #     expect(cc_data.token.length).to eq 64
-  #   end
-  # end
+  # test with cc as Hash or CreditCard instance
+  it 'to create valid credit card token' do
+    [credit_card, raw_credit_card].each do |cc|
+      cc_token = gateway.store credit_card
+      expect(cc_token.length).to eq 64
+    end
+  end
 
   it 'authorizes allready created order' do
     token = gateway.store credit_card
@@ -79,8 +76,26 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(authorization.key.include?('aut-')).to be(true)
 
     response = gateway.void 0.1, authorization.key, currency: 'USD'
-
+    expect(response.success?).to be_truthy
     expect(response.params['response'].key.include?('rev-')).to be(true)
+  end
+
+  it 'refunds the transaction by authorization_id' do
+    authorization = gateway.flow_get_authorization order_number: test_order_number
+    response      = gateway.capture 0.1, authorization.key
+    capture       = response.params['response']
+
+    expect(capture.nil?).to be(false)
+    expect(capture.key.include?('cap-')).to be_truthy
+    expect(capture.authorization.key).to eq(authorization.key)
+    expect(capture.status.value).to eq('succeeded')
+
+    response = gateway.refund 0.1, capture.id, currency: 'USD'
+    expect(response.success?).to be_truthy
+    expect(response.params['response'].key.include?('ref-')).to be(true)
+
+    bad_response = gateway.refund(nil, capture.id)
+    expect(bad_response.success?).to be(false)
   end
 
   # it 'checks create order, authorize and capture (if not in review) ability' do

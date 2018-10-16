@@ -126,13 +126,13 @@ module ActiveMerchant
           error_response exception
         end
 
-        options = { response: response }
-
         if response.try(:id)
-          Response.new true, 'Flow capture - Success', options
+          Response.new true, 'Flow capture - Success', { response: response }
         else
-          Response.new false, 'Flow capture - Error', options
+          Response.new false, 'Flow capture - Error', { response: response }
         end
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
       end
 
       # def purchase money, credit_card, options={}
@@ -146,9 +146,7 @@ module ActiveMerchant
         options[:authorization_id] = authorization_id
 
         if amount
-          raise 'Currency must be specified when amount is specified' unless options[:currency]
-
-          options[:amount] = amount
+          options[:amount] = assert_currency options[:currency], amount
         end
 
         response = flow_instance.reversals.post @flow_organization, options
@@ -158,41 +156,40 @@ module ActiveMerchant
         error_response exception
       end
 
-      # # https://docs.flow.io/module/payment/resource/refunds
-      # # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
-      # # capture_id       - The Id of the capture against which to issue the refund. If specified, we will only consider this capture.
-      # # order_number     - The order number if specified during authorization. If specified, we will lookup all authorizations made against this order number, and then selecting 1 or more authorizations against which to issue the refund of the requested amount.
-      # # key              - Your unique identifier for this transaction, which if provided is used to implement idempotency. If not provided, we will assign.
-      # # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
-      # # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
-      # # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
-      # def refund amount, capture_id, options={}
-      #   refund_form = {}
-      #   refund_form[:amount]     = amount if amount
-      #   refund_form[:capture_id] = capture_id if capture_id
+      # https://docs.flow.io/module/payment/resource/refunds
+      # authorization_id - The Id of the authorization against which to issue the refund. If specified, we will look at all captures for this authorization, selecting 1 or more captures against which to issue the refund of the requested amount.
+      # capture_id       - The Id of the capture against which to issue the refund. If specified, we will only consider this capture.
+      # order_number     - The order number if specified during authorization. If specified, we will lookup all authorizations made against this order number, and then selecting 1 or more authorizations against which to issue the refund of the requested amount.
+      # amount           - The amount to refund, in the currency of the associated capture. Defaults to the value of the capture minus any prior refunds.
+      # currency         - The ISO 4217-3 code for the currency. Required if amount is specified. Case insensitive. Note you will get an error if the currency does not match the related authrization's currency. See https://api.flow.io/reference/currencies
+      # rma_key          - The RMA key, if available. If specified, this will udpate the RMA status as refunded.
+      def refund amount, capture_id, options={}
+        options[:capture_id] = capture_id if capture_id
 
-      #   [:authorization_id, :currency, :order_number, :key, :rma_key].each do |key|
-      #     refund_form[key] = options[key] if options[key]
-      #   end
+        if amount
+          options[:amount] = assert_currency options[:currency], amount
+        end
 
-      #   if refund_form[:amount]
-      #     raise ArgumentError, 'Currency is required if amount is provided' unless refund_form[:currency]
-      #     refund_form[:amount] = assert_currency refund_form[:currency], refund_form[:amount]
-      #   end
+        response = flow_instance.refunds.post @flow_organization, options
 
-      #   refund_form = ::Io::Flow::V0::Models::RefundForm.new refund_form
-      #   flow_instance.refunds.post @flow_organization, refund_form
-      # end
+        if response.try(:id)
+          Response.new true, 'Flow refund - Success', { response: response }
+        else
+          Response.new false, 'Flow refund - Error', { response: response }
+        end
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
+      end
 
-      # # store credit card with flow and get reference token
-      # def store credit_card, options={}
-      #   response = cc_with_token credit_card
-      #   Response.new true, 'Credit card stored', { response: response, token: response.token }
-      # rescue Io::Flow::V0::HttpClient::ServerError => exception
-      #   error_response exception
-      # end
+      # store credit card with flow and get reference token
+      def store credit_card, options={}
+        response = cc_with_token credit_card
+        Response.new true, 'Credit card stored', { response: response, token: response.token }
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
+      end
 
-      # stores credit card
+      # stores credit card and returns credit card Flow token String id
       def store input
         credit_card =
         case input
@@ -213,8 +210,7 @@ module ActiveMerchant
           expiration_month: credit_card.month.to_i
         }
 
-        card_form = ::Io::Flow::V0::Models::CardForm.new data
-        response  = flow_instance.cards.post @flow_organization, card_form
+        response  = flow_instance.cards.post @flow_organization, data
         response.token
       end
 
@@ -225,7 +221,8 @@ module ActiveMerchant
       end
 
       def error_response exception_object
-        message = if exception_object.respond_to?(:body) && exception_object.body.length > 0
+        message =
+        if exception_object.respond_to?(:body) && exception_object.body.length > 0
           description  = JSON.load(exception_object.body)['messages'].to_sentence
           '%s: %s (%s)' % [exception_object.details, description, exception_object.code]
         else
@@ -238,7 +235,10 @@ module ActiveMerchant
       end
 
       def assert_currency currency, amount
-        raise ArgumentError, 'currency not provided' unless currency
+        unless currency.to_s.length == 3
+          raise ArgumentError.new('Currency is required if amount is provided')
+        end
+
         FlowCommerce::Reference::Currencies.find! currency
         amount.to_f
       end
