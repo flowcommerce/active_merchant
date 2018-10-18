@@ -6,7 +6,8 @@ require 'spec_helper'
 RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   # ActiveMerchant accepts all amounts as Integer values in cents
-  let(:amount) { 1 } # $10.00
+  let(:amount)   { 1 } # $1.00
+  let(:currency) { 'USD' }
 
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
@@ -47,9 +48,11 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
     expect(token.length).to eq(64)
 
-    response = gateway.authorize token, test_order_number
+    response = gateway.authorize token, test_order_number, currency: currency, amount: amount
+    expect(response.success?).to be(true)
 
-    expect(response.key.include?('aut-')).to be_truthy
+    authorize = response.params['response']
+    expect(authorize.key.include?('aut-')).to be(true)
   end
 
   it 'get flow authorization from order_number' do
