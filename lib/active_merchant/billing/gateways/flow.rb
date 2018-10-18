@@ -26,23 +26,28 @@ module ActiveMerchant
 
       # Create a new authorization.
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
-      def authorize cc_or_token, order_number, discriminator=nil
-        credit_card_token = store cc_or_token
+      def authorize cc_or_token, order_number, opts={}
+        return error_response('Currency is a required option') unless opts[:currency]
 
-        discriminator ||= 'merchant_of_record'
+        opts[:discriminator] ||= 'merchant_of_record'
 
         body = {
-          token:        credit_card_token,
+          amount:       opts[:amount] || 0.0,
+          currency:     opts[:currency],
+          token:        store(cc_or_token),
           order_number: order_number
         }
 
-        authorization_form = if discriminator.to_s.include?('merchant')
+        authorization_form = if opts[:discriminator].to_s.include?('merchant')
           ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new body
         else
           ::Io::Flow::V0::Models::DirectAuthorizationForm.new body
         end
 
-        flow_instance.authorizations.post @flow_organization, authorization_form
+        response = flow_instance.authorizations.post @flow_organization, authorization_form
+        Response.new true, 'Flow authorize - Success', { response: response }
+      rescue => exception
+        error_response exception
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#get-organization-authorizations
@@ -164,14 +169,21 @@ module ActiveMerchant
 
       def error_response exception_object
         message =
-        if exception_object.respond_to?(:body) && exception_object.body.length > 0
+        if exception_object.is_a?(String)
+          exception_object
+        elsif exception_object.respond_to?(:body) && exception_object.body.length > 0
           description  = JSON.load(exception_object.body)['messages'].to_sentence
           '%s: %s (%s)' % [exception_object.details, description, exception_object.code]
-        else
+        elsif exception_object.respond_to?(:message)
           exception_object.message
+        else
+          raise ArgumentError.new('Unsuported exception_object [%s]' % exception_object.class)
         end
 
-        puts 'ERROR: %s' % message
+        msg = 'ERROR: %s' % message
+        msg = msg.yellow if msg.respond_to?(:yellow)
+
+        puts msg
 
         Response.new false, message, exception: exception_object
       end
