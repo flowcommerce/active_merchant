@@ -6,7 +6,7 @@ require 'flowcommerce-reference'
 module ActiveMerchant
   module Billing
     class FlowGateway < Gateway
-      VERSION = '0.1.3' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
+      VERSION = '0.2.0' unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
 
       self.display_name        = 'Flow.io Pay'
       self.homepage_url        = 'https://www.flow.io/'
@@ -24,67 +24,8 @@ module ActiveMerchant
         super
       end
 
+      # Create a new authorization.
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
-      # 1. get credit card token
-      # 2. create order
-      # 3. order submission
-      # 4. authorize with credit card token and order_number from step 2
-      # def authorize amount, cc_or_token, options={}
-      #   amount = assert_currency options[:currency], amount
-
-      #   # 1. get credit card token
-      #   credit_card_token = if String == cc_or_token.class
-      #       cc_or_token
-      #     else
-      #       credit_card = cc_with_token payment_method
-      #       credit_card.token
-      #     end
-
-      #   # 2. create order
-
-      #   data = {
-      #     token:    credit_card.token,
-      #     amount:   amount,
-      #     currency: options[:currency],
-      #     cvv:      payment_method.verification_value,
-      #     customer: {
-      #       name: {
-      #         first: payment_method.first_name,
-      #         last: payment_method.last_name
-      #       }
-      #     }
-      #   }
-
-      #   begin
-      #     authorization_form = if options[:order_number]
-      #         # order_number allready present at flow
-      #         data[:order_number] = options[:order_number]
-      #         ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new data
-      #       else
-      #         ::Io::Flow::V0::Models::DirectAuthorizationForm.new data
-      #       end
-
-      #     response = flow_instance.authorizations.post @flow_organization, authorization_form
-      #   rescue => exception
-      #     return Response.new false, exception.message, { exception: exception }
-      #   end
-
-      #   options = { response: response }
-
-      #   if ['review', 'authorized'].include?(response.result.status.value)
-      #     store = {
-      #                    key: response.key,
-      #                 amount: response.amount,
-      #               currency: response.currency,
-      #       authorization_id: response.id
-      #     }
-
-      #     Response.new true, 'Flow authorize - Success', options, { authorization: store }
-      #   else
-      #     Response.new false, 'Flow authorize - Error', options
-      #   end
-      # end
-
       def authorize cc_or_token, order_number, discriminator=nil
         credit_card_token = store cc_or_token
 
@@ -104,6 +45,7 @@ module ActiveMerchant
         flow_instance.authorizations.post @flow_organization, authorization_form
       end
 
+      # https://docs.flow.io/module/payment/resource/authorizations#get-organization-authorizations
       def flow_get_authorization order_number:
         response = flow_instance.authorizations.get @flow_organization, order_number: order_number
         response.last
