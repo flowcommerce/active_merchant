@@ -59,6 +59,23 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(authorize.key.include?('aut-')).to be(true)
   end
 
+  it 'fails on bad authorize requests' do
+    token = gateway.store credit_card
+
+    response1 = gateway.authorize token, test_order_number,
+      currency: currency,
+      amount: amount
+
+    expect(response1.success?).to be(false)
+
+    response2 = gateway.authorize token, test_order_number,
+      currency: currency,
+      amount: amount,
+      discriminator: :foo
+
+    expect(response2.success?).to be(false)
+  end
+
   it 'get flow authorization from order_number' do
     response = gateway.flow_get_authorization order_number: test_order_number
 
