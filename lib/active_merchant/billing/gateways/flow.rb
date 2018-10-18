@@ -8,6 +8,12 @@ module ActiveMerchant
     class FlowGateway < Gateway
       unless defined?(::ActiveMerchant::Billing::FlowGateway::VERSION)
         VERSION = File.read(File.expand_path("../../../../.version", File.dirname(__FILE__))).chomp
+
+        FORM_TYPES = [
+          :authorization_copy_form, :direct_authorization_form, :merchant_of_record_authorization_form,
+          :paypal_authorization_form, :redirect_authorization_form, :inline_authorization_form,
+          :card_authorization_form, :ach_authorization_form
+        ]
       end
 
       self.display_name        = 'Flow.io Pay'
@@ -15,6 +21,7 @@ module ActiveMerchant
       self.default_currency    = 'USD'
       self.supported_countries = FlowCommerce::Reference::Countries::ISO_3166_2
       self.supported_cardtypes = FlowCommerce::Reference::PaymentMethods::SUPPORTED_CREDIT_CARDS
+
 
       def initialize options = {}
         @flow_api_key      = options[:api_key]      || ENV['FLOW_API_KEY']
@@ -29,24 +36,28 @@ module ActiveMerchant
       # Create a new authorization.
       # https://docs.flow.io/module/payment/resource/authorizations#post-organization-authorizations
       def authorize cc_or_token, order_number, opts={}
-        return error_response('Currency is a required option') unless opts[:currency]
-
-        opts[:discriminator] ||= 'merchant_of_record'
-
-        body = {
-          amount:       opts[:amount] || 0.0,
-          currency:     opts[:currency],
-          token:        store(cc_or_token),
-          order_number: order_number
-        }
-
-        authorization_form = if opts[:discriminator].to_s.include?('merchant')
-          ::Io::Flow::V0::Models::MerchantOfRecordAuthorizationForm.new body
-        else
-          ::Io::Flow::V0::Models::DirectAuthorizationForm.new body
+        unless opts[:currency]
+          return error_response('Currency is a required option')
         end
 
-        response = flow_instance.authorizations.post @flow_organization, authorization_form
+        unless opts[:discriminator]
+          return error_response 'Discriminator is not defined, please choose one [%s]' % FORM_TYPES.join(', ')
+        end
+
+        unless FORM_TYPES.include?(opts[:discriminator].to_sym)
+          return error_response 'Discriminator [%s] not found, please choose one [%s]' % [opts[:discriminator], FORM_TYPES.join(', ')]
+        end
+
+        body = {
+          amount:        opts[:amount] || 0.0,
+          currency:      opts[:currency],
+          discriminator: opts[:discriminator],
+          token:         store(cc_or_token),
+          order_number:  order_number
+        }
+
+        response = flow_instance.authorizations.post @flow_organization, body
+
         Response.new true, 'Flow authorize - Success', { response: response }
       rescue => exception
         error_response exception

@@ -29,7 +29,7 @@ class Object
   # show method or object info
   def showm klass, mtd=nil
     if mtd
-      el = klass.instance_method(mtd)
+      el = klass.class.instance_method(mtd)
       puts el.source_location.join(':').yellow
       puts '-'
       puts el.source
