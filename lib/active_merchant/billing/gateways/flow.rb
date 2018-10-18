@@ -60,7 +60,7 @@ module ActiveMerchant
 
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
       def capture amount, authorization_key, options={}
-        options[:currency] ||= 'USD'
+        return error_response('Currency is a required option') unless options[:currency]
 
         body = {
           authorization_id: authorization_key,
@@ -191,10 +191,6 @@ module ActiveMerchant
       end
 
       def assert_currency currency, amount
-        unless currency.to_s.length == 3
-          raise ArgumentError.new('Currency is required if amount is provided')
-        end
-
         FlowCommerce::Reference::Currencies.find! currency
         amount.to_f
       end

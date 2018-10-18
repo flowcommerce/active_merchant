@@ -25,13 +25,18 @@ end
 
 ###
 
-# class Object
-#   # show method info
-#   def showm klass, m
-#     el = klass.instance_method(m)
-#     puts el.source_location.join(':').yellow
-#     puts '-'
-#     puts el.source
-#     nil
-#   end
-# end
+class Object
+  # show method or object info
+  def showm klass, mtd=nil
+    if mtd
+      el = klass.instance_method(mtd)
+      puts el.source_location.join(':').yellow
+      puts '-'
+      puts el.source
+    else
+      puts klass.inspect
+    end
+
+    nil
+  end
+end
