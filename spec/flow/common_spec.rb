@@ -12,7 +12,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
   # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
-  let(:test_order_number) { 'ord-e1e9d7aa0a0b41f6a01d8af14c1fd05b' }
+  let(:test_order_number) { 'ord-eb68bac67be94659996db59c9a8e379e' }
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
@@ -48,7 +48,11 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
     expect(token.length).to eq(64)
 
-    response = gateway.authorize token, test_order_number, currency: currency, amount: amount
+    response = gateway.authorize token, test_order_number,
+      currency: currency,
+      amount: amount,
+      discriminator: :merchant_of_record_authorization_form
+
     expect(response.success?).to be(true)
 
     authorize = response.params['response']
@@ -65,6 +69,9 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   it 'captures funds' do
     authorization = gateway.flow_get_authorization order_number: test_order_number
     response      = gateway.capture 0.1, authorization.key, currency: currency
+
+    expect(response.success?).to be(true)
+
     capture       = response.params['response']
 
     expect(capture.nil?).to be(false)
@@ -86,6 +93,9 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   it 'refunds the transaction by authorization_id' do
     authorization = gateway.flow_get_authorization order_number: test_order_number
     response      = gateway.capture 0.1, authorization.key, currency: currency
+
+    expect(response.success?).to be(true)
+
     capture       = response.params['response']
 
     expect(capture.nil?).to be(false)
