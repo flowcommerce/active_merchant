@@ -1,8 +1,8 @@
-require_relative 'lib/flowcommerce-activemerchant'
+# require_relative 'lib/flowcommerce-activemerchant'
 
 Gem::Specification.new do |gem|
   gem.name        = 'flowcommerce-activemerchant'
-  gem.version     = ::ActiveMerchant::Billing::FlowGateway::VERSION
+  gem.version     = File.read('./.version').chomp
   gem.summary     = 'Adapter for Flow.io global payment gateway'
   gem.description = 'Flow.io is PCI compliant gateway which supports authorizations, captures, refunds and tokenization of credit cards globally.'
   gem.homepage    = 'https://www.flow.io'
