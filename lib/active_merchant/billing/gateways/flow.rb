@@ -185,7 +185,8 @@ module ActiveMerchant
       end
 
       # Submits an order and
-      # pushes all subsequent authorization from status "review" to "authorized"
+      # pushes all subsequent authorizations from status "review" to "authorized"
+      # takes ~ 60 seconds
       def flow_submission_by_number order_number
         flow_instance.orders.put_submissions_by_number @flow_organization, order_number
       rescue => exception
