@@ -65,7 +65,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   it 'creates and subscribes an order (60 wait time)' do
     puts 'Please choose'.yellow
-    puts ' 1. Create new order, submit it and enter recieved order number .env'
+    puts ' 1. Create new order, submit it and enter received order number .env'
     puts ' 2. Proceed with tests'
     print 'Enter 1 or 2: '
 
