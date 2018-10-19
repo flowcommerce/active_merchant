@@ -184,6 +184,8 @@ module ActiveMerchant
         error_response exception
       end
 
+      # Submits an order and
+      # pushes all subsequent authorization from status "review" to "authorized"
       def flow_submission_by_number order_number
         flow_instance.orders.put_submissions_by_number @flow_organization, order_number
       rescue => exception
