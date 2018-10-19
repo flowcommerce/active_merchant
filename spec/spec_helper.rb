@@ -8,8 +8,8 @@ require 'active_merchant'
 require 'flowcommerce'
 require 'dotenv'
 require 'pry'
-require 'awesome_print'
 require 'digest'
+require 'colorize'
 
 Dotenv.load
 
