@@ -12,7 +12,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
   # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
-  let(:test_order_number) { 'ord-eb68bac67be94659996db59c9a8e379e' }
+  # after that all authorizations against an order should have result.status: "authorized"
+  let(:test_order_number) { ENV.fetch('FLOW_ORDER_NUMBER') }
 
   # init Flow with default ENV flow key names
   let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
@@ -33,7 +34,53 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     ActiveMerchant::Billing::CreditCard.new(raw_credit_card)
   }
 
+  let(:order_create_body) {
+    {
+      "items": [
+        {
+          "number": "sku-1",
+          "quantity": 15,
+          "center": "center-2dffd30d-2459-4937-aa4e-2647bf171867"
+        }
+      ],
+      "customer": {
+        "number": "client-user-123",
+        "name": {
+          "first": "Dino",
+          "last": "Reic"
+        },
+        "phone": "+1-646-813-9414",
+        "email": "dino.reic@test.flow.io"
+      },
+      "destination": {
+        "streets": ["129 City Rd"],
+        "city": "London",
+        "postal": "EC1V 1JB",
+        "country": "GBR"
+      }
+    }
+  }
+
   ###
+
+  it 'creates and subscribes an order (60 wait time)' do
+    puts 'Please choose'.yellow
+    puts ' 1. Create new order, submit it and enter recieved order number .env'
+    puts ' 2. Proceed with tests'
+    print 'Enter 1 or 2: '
+
+    if $stdin.gets.chomp.to_i == 1
+      order      = gateway.flow_create_order order_create_body, experience: "australia"
+      expect(order.number.include?('ord-')).to be(true)
+
+      puts ' Order number: %s' % order.number.yellow
+
+      submission = gateway.flow_submission_by_number order.number
+      expect(order.number).to eq(submission.number)
+
+      exit
+    end
+  end
 
   # test with cc as Hash or CreditCard instance
   it 'to create valid credit card token' do
