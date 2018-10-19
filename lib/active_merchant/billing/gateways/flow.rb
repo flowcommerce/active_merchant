@@ -67,6 +67,8 @@ module ActiveMerchant
       def flow_get_authorization order_number:
         response = flow_instance.authorizations.get @flow_organization, order_number: order_number
         response.last
+      rescue => exception
+        error_response exception
       end
 
       # https://docs.flow.io/module/payment/resource/captures#post-organization-captures
@@ -178,10 +180,14 @@ module ActiveMerchant
       # https://docs.flow.io/module/localization/resource/orders#post-organization-orders
       def flow_create_order body, query_string={}
         flow_instance.orders.post @flow_organization, body, query_string
+      rescue => exception
+        error_response exception
       end
 
       def flow_submission_by_number order_number
         flow_instance.orders.put_submissions_by_number @flow_organization, order_number
+      rescue => exception
+        error_response exception
       end
 
       private
