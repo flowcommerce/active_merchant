@@ -74,6 +74,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
       expect(order.number.include?('ord-')).to be(true)
 
       puts ' Order number: %s' % order.number.yellow
+      puts ' Please wait ~ 60 seconds for order to be approved.'
 
       submission = gateway.flow_submission_by_number order.number
       expect(order.number).to eq(submission.number)
