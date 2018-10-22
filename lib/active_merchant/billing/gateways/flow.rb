@@ -143,14 +143,6 @@ module ActiveMerchant
         error_response exception
       end
 
-      # store credit card with flow and get reference token
-      def store credit_card, options={}
-        response = cc_with_token credit_card
-        Response.new true, 'Credit card stored', { response: response, token: response.token }
-      rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response exception
-      end
-
       # stores credit card and returns credit card Flow token String id
       def store input
         credit_card =
