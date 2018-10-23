@@ -85,7 +85,6 @@ Require gem and initialize the gateway
 Now that we have gateway we can authorize and capture funds.
 
 
-
 ### authorize and capture, or just purchase
 
 Purchase method is shortcut for authorize && capture. Please keep in mind that currency is required option for authorize and purchase.
@@ -129,8 +128,6 @@ For purchase order cancelation, you need authorization key from Flow. You will f
   expect(response.success?).to eq(true)
   expect(response.params['token'].length).to eq(64)
 ```
-
-
 
 ## Reading raw Flow API response
 

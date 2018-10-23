@@ -9,7 +9,7 @@ func main() {
 
 	executor = executor.Add("rm -f ./flowcommerce-*.gem")
 	executor = executor.Add("git fetch --tags origin")
-	executor = executor.Add("script/set_version.rb")
+	// executor = executor.Add("script/set_version.rb")
 	executor = executor.Add("dev tag")
 	executor = executor.Add("sudo gem install --no-ri --no-rdoc flowcommerce-reference")
 	executor = executor.Add("sudo gem install --no-ri --no-rdoc flowcommerce")
