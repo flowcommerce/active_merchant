@@ -9,7 +9,7 @@ Gem::Specification.new do |gem|
   gem.license     = 'MIT'
   gem.authors     = ['Dino Reic']
   gem.email       = 'tech@flow.io'
-  gem.files       = Dir['./lib/**/*.rb']
+  gem.files       = Dir['./lib/**/*.rb'] + ['./.version', './LICENSE']
 
   gem.add_runtime_dependency 'activemerchant', '~> 1.78'
   gem.add_runtime_dependency 'flowcommerce', '~> 0.2.58'
