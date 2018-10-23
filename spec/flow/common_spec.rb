@@ -61,6 +61,18 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     }
   }
 
+  let(:get_cc_token) {
+    response = gateway.store credit_card
+    expect(response.success?).to be(true)
+    expect(response.params['response'].respond_to?(:token)).to be(true)
+
+    token = response.params['response'].token
+
+    expect(token.length).to be(64)
+
+    token
+  }
+
   ###
 
   it 'creates and subscribes an order (60 wait time)' do
@@ -86,15 +98,13 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   # test with cc as Hash or CreditCard instance
   it 'to create valid credit card token' do
     [credit_card, raw_credit_card].each do |cc|
-      cc_token = gateway.store credit_card
+      cc_token = get_cc_token
       expect(cc_token.length).to eq 64
     end
   end
 
   it 'authorizes already created order' do
-    token = gateway.store credit_card
-
-    expect(token.length).to eq(64)
+    token = get_cc_token
 
     response = gateway.authorize token, test_order_number,
       currency: currency,
@@ -108,7 +118,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   end
 
   it 'fails on bad authorize requests' do
-    token = gateway.store credit_card
+    token = get_cc_token
 
     response1 = gateway.authorize token, test_order_number,
       currency: currency,

@@ -1,4 +1,4 @@
-# @Flow.io (2017)
+  # @Flow.io (2017)
 # Active Merchant adapter for Flow api
 
 require 'flowcommerce-reference'
@@ -165,7 +165,14 @@ module ActiveMerchant
         }
 
         response  = flow_instance.cards.post @flow_organization, data
-        response.token
+
+        if response.respond_to?(:token)
+          Response.new true, 'Flow refund - Success', { response: response }
+        else
+          Response.new false, 'Flow POST /:organization/cards - Failure', { response: response }
+        end
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
       end
 
       # Creates and order
