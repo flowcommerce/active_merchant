@@ -58,7 +58,7 @@ module ActiveMerchant
 
         response = flow_instance.authorizations.post @flow_organization, body
 
-        Response.new true, 'Flow authorize - Success', { response: response }
+        Response.new true, 'Flow authorize - Success', { response: response }, { authorization: response.id }
       rescue => exception
         error_response exception
       end
@@ -97,10 +97,10 @@ module ActiveMerchant
         error_response exception
       end
 
-      # def purchase money, credit_card, options={}
-      #   response = authorize money, credit_card, options
-      #   capture money, response.authorization
-      # end
+      def purchase credit_card, order_number, options={}
+        response = authorize credit_card, order_number, options
+        capture options[:amount], response.authorization, options
+      end
 
       # https://docs.flow.io/module/payment/resource/reversals#post-organization-reversals
       # if amount is not provided, reverse the full or remaining amount
