@@ -98,8 +98,15 @@ module ActiveMerchant
       end
 
       def purchase credit_card, order_number, options={}
-        response = authorize credit_card, order_number, options
-        capture options[:amount], response.authorization, options
+        auth_response = flow_get_authorization order_number: order_number
+
+        if auth_response
+          capture options[:amount], auth_response.key, options
+        else
+          error_response 'No authorization for order: %s' % order_number
+        end
+      rescue Io::Flow::V0::HttpClient::ServerError => exception
+        error_response exception
       end
 
       # https://docs.flow.io/module/payment/resource/reversals#post-organization-reversals

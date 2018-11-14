@@ -6,8 +6,8 @@ require 'spec_helper'
 RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   # ActiveMerchant accepts all amounts as Integer values in cents
-  let(:amount)   { 1 } # $1.00
-  let(:currency) { 'USD' }
+  let(:test_currency) { 'USD' }
+  let(:test_amount)   { 0.1 }
 
   # pre-created order with some $ for testing purposes
   # POST /orders                          - to create test order
@@ -75,23 +75,44 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   ###
 
-  it 'creates and subscribes an order (60 wait time)' do
-    puts 'Please choose'.yellow
-    puts ' 1. Create new order, submit it and enter received order number .env'
-    puts ' 2. Proceed with tests'
-    print 'Enter 1 or 2: '
+  puts 'Please choose'.yellow
+  puts ' 1. Create new order, submit it and enter received order number .env'
+  puts ' 2. Void transaction'
+  puts ' ENTER Proceed with tests'
+  print 'Choice: '
 
-    if $stdin.gets.chomp.to_i == 1
+  $choice = $stdin.gets.chomp.to_i
+
+  it 'creates and subscribes an order (60 wait time)' do
+    if $choice == 1
       order      = gateway.flow_create_order order_create_body, experience: "australia"
       expect(order.number.include?('ord-')).to be(true)
 
-      puts ' Order number: %s' % order.number.yellow
+      puts ' Order number: %s (enter in .env)' % order.number.yellow
       puts ' Please wait ~ 60 seconds for order to be approved.'
 
       submission = gateway.flow_submission_by_number order.number
       expect(order.number).to eq(submission.number)
 
       exit
+    else
+      print '  skipping'
+    end
+  end
+
+  it 'voids (cancels) the authorization' do
+    if $choice == 2
+      authorization = gateway.flow_get_authorization order_number: test_order_number
+
+      expect(authorization.key.include?('aut-')).to be(true)
+
+      response = gateway.void test_amount, authorization.key, currency: test_currency
+      expect(response.success?).to be_truthy
+      expect(response.params['response'].key.include?('rev-')).to be(true)
+
+      exit
+    else
+      print '  skipping'
     end
   end
 
@@ -107,8 +128,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     token = get_cc_token
 
     response = gateway.authorize token, test_order_number,
-      currency: currency,
-      amount: amount,
+      currency: test_currency,
+      amount: test_amount,
       discriminator: :merchant_of_record_authorization_form
 
     expect(response.success?).to be(true)
@@ -121,14 +142,14 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     token = get_cc_token
 
     response1 = gateway.authorize token, test_order_number,
-      currency: currency,
-      amount: amount
+      currency: test_currency,
+      amount: test_amount
 
     expect(response1.success?).to be(false)
 
     response2 = gateway.authorize token, test_order_number,
-      currency: currency,
-      amount: amount,
+      currency: test_currency,
+      amount: test_amount,
       discriminator: :foo
 
     expect(response2.success?).to be(false)
@@ -136,38 +157,39 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   it 'get flow authorization from order_number' do
     response = gateway.flow_get_authorization order_number: test_order_number
-
     expect(response.key.include?('aut-')).to be_truthy
     expect(['review', 'authorized'].include?(response.result.status.value)).to be_truthy
+    response
   end
 
-  it 'captures funds' do
-    authorization = gateway.flow_get_authorization order_number: test_order_number
-    response      = gateway.capture 0.1, authorization.key, currency: currency
+  it 'captures funds or creates purchase (authorize and cappture in one step)' do
+    puts 'Please choose'.yellow
+    puts ' 1. test capture method'
+    puts ' 2. test purchase method'
+    print 'Choice: '
 
-    expect(response.success?).to be(true)
+    if $stdin.gets.chomp.to_i == 1
+      authorization = gateway.flow_get_authorization order_number: test_order_number
+      response      = gateway.capture test_amount, authorization.key, currency: test_currency
 
-    capture       = response.params['response']
+      expect(response.success?).to be(true)
 
-    expect(capture.nil?).to be(false)
-    expect(capture.key.include?('cap-')).to be_truthy
-    expect(capture.authorization.key).to eq(authorization.key)
-    expect(capture.status.value).to eq('succeeded')
-  end
+      capture       = response.params['response']
 
-  it 'voids (cancels) the authorization' do
-    authorization = gateway.flow_get_authorization order_number: test_order_number
-
-    expect(authorization.key.include?('aut-')).to be(true)
-
-    response = gateway.void 0.1, authorization.key, currency: 'USD'
-    expect(response.success?).to be_truthy
-    expect(response.params['response'].key.include?('rev-')).to be(true)
+      expect(capture.nil?).to be(false)
+      expect(capture.key.include?('cap-')).to be_truthy
+      expect(capture.authorization.key).to eq(authorization.key)
+      expect(capture.status.value).to eq('succeeded')
+    else
+      purchase = gateway.purchase credit_card, test_order_number, currency: test_currency, amount: test_amount
+      expect(purchase.success?).to be_truthy
+      expect(purchase.params['response'].key.include?('cap-')).to be true
+    end
   end
 
   it 'refunds the transaction by authorization_id' do
     authorization = gateway.flow_get_authorization order_number: test_order_number
-    response      = gateway.capture 0.1, authorization.key, currency: currency
+    response      = gateway.capture test_amount, authorization.key, currency: test_currency
 
     expect(response.success?).to be(true)
 
@@ -178,12 +200,13 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(capture.authorization.key).to eq(authorization.key)
     expect(capture.status.value).to eq('succeeded')
 
-    response = gateway.refund 0.1, capture.id, currency: 'USD'
+    response = gateway.refund test_amount, capture.id, currency: test_currency
     expect(response.success?).to be_truthy
     expect(response.params['response'].key.include?('ref-')).to be(true)
 
     bad_response = gateway.refund(nil, capture.id)
     expect(bad_response.success?).to be(false)
   end
+
 
 end
