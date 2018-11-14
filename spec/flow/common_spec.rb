@@ -62,14 +62,9 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   }
 
   let(:get_cc_token) {
-    response = gateway.store credit_card
-    expect(response.success?).to be(true)
-    expect(response.params['response'].respond_to?(:token)).to be(true)
-
-    token = response.params['response'].token
-
+    token = gateway.store credit_card
+    expect(token.class).to be(String)
     expect(token.length).to be(64)
-
     token
   }
 
@@ -77,8 +72,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   puts 'Please choose'.yellow
   puts ' 1. Create new order, submit it and enter received order number .env'
-  puts ' 2. Void transaction'
-  puts ' ENTER Proceed with tests'
+  puts ' 2. Rest of the tests'
+  puts ' ENTER Proceed with tests (selects 2)'
   print 'Choice: '
 
   $choice = $stdin.gets.chomp.to_i
@@ -100,7 +95,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     end
   end
 
-  it 'voids (cancels) the authorization' do
+  xit 'voids (cancels) the authorization' do
     if $choice == 2
       authorization = gateway.flow_get_authorization order_number: test_order_number
 

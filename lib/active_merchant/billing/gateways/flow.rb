@@ -155,10 +155,16 @@ module ActiveMerchant
         credit_card =
         case input
           when Hash
+            # ActiveMerchant::Billing::CreditCard does not support "address" field
+            # so we have to capture it manualy
+            # format - https://docs.flow.io/type/billing-address
+            @address = credit_card.delete(:address)
+
             ActiveMerchant::Billing::CreditCard.new input
           when ActiveMerchant::Billing::CreditCard
             input
           when String
+            # if it is a String then it allready is a token
             return input
           else
             raise 'Unsuported store method input type [%s]' % input.class
@@ -169,13 +175,14 @@ module ActiveMerchant
                        cvv: credit_card.verification_value,
            expiration_year: credit_card.year.to_i,
           expiration_month: credit_card.month.to_i
-                   address: credit_card.address
         }
+
+        data[:address] = @address if @address
 
         response  = flow_instance.cards.post @flow_organization, data
 
         if response.respond_to?(:token)
-          Response.new true, 'Flow refund - Success', { response: response }
+          response.token
         else
           Response.new false, 'Flow POST /:organization/cards - Failure', { response: response }
         end
