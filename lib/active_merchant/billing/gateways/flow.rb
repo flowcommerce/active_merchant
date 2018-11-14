@@ -169,6 +169,7 @@ module ActiveMerchant
                        cvv: credit_card.verification_value,
            expiration_year: credit_card.year.to_i,
           expiration_month: credit_card.month.to_i
+                   address: credit_card.address
         }
 
         response  = flow_instance.cards.post @flow_organization, data
