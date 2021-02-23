@@ -9,14 +9,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   let(:test_currency) { 'USD' }
   let(:test_amount)   { 0.1 }
 
-  # pre-created order with some $ for testing purposes
-  # POST /orders                          - to create test order
-  # PUT /orders/:order_number/submissions - to authorize, can take 30 - 120 seconds
-  # after that all authorizations against an order should have result.status: "authorized"
-  let(:test_order_number) { ENV.fetch('FLOW_ORDER_NUMBER') }
-
   # init Flow with default ENV flow key names
-  let(:gateway) { ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION')) }
+  gateway = ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION'))
 
   let(:raw_credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
@@ -34,21 +28,23 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     ActiveMerchant::Billing::CreditCard.new(raw_credit_card)
   }
 
-  let(:order_create_body) {
-    {
+  let(:get_cc_token) {
+    token = gateway.store credit_card
+    expect(token.class).to be(String)
+    expect(token.length).to be(64)
+    token
+  }
+
+  test_order_number = nil
+
+  before(:all) do
+    order_create_body = {
       "items": [
-        {
-          "number": "sku-101",
-          "quantity": 1,
-          "center": "default"
-        }
+        { "number": "sku-101", "quantity": 1, "center": "default" }
       ],
       "customer": {
         "number": "client-user-123",
-        "name": {
-          "first": "Ruby",
-          "last": "Active"
-        },
+        "name": { "first": "Ruby", "last": "Active" },
         "phone": "+1-646-813-9414",
         "email": "activemerchant@test.flow.io"
       },
@@ -59,41 +55,16 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
         "country": "GBR"
       }
     }
-  }
 
-  let(:get_cc_token) {
-    token = gateway.store credit_card
-    expect(token.class).to be(String)
-    expect(token.length).to be(64)
-    token
-  }
+    order = gateway.flow_create_order order_create_body, experience: "united-kingdom-3"
+    submission = gateway.flow_submission_by_number order.number
+    puts "Order Number: #{order.number}".yellow
+    test_order_number = order.number
+  end
 
   ###
 
-  puts 'Please choose'.yellow
-  puts ' 1. Create new order, submit it and enter received order number .env'
-  puts ' 2. Rest of the tests'
-  puts ' ENTER Proceed with tests (selects 2)'
-  print 'Choice: '
-
-  $choice = $stdin.gets.chomp.to_i
-
-  it 'creates and subscribes an order (60 wait time)' do
-    if $choice == 1
-      order      = gateway.flow_create_order order_create_body, experience: "united-kingdom-3"
-      expect(order.id.include?('ord-')).to be(true)
-
-      puts ' Order number: %s (enter in .env)' % order.number.yellow
-      puts ' Please wait ~ 60 seconds for order to be approved.'
-
-      submission = gateway.flow_submission_by_number order.number
-      expect(order.number).to eq(submission.number)
-      exit
-    else
-      print '  skipping'
-    end
-  end
-
+  # TODO: use reversal api
   xit 'voids (cancels) the authorization' do
     if $choice == 2
       authorization = gateway.flow_get_authorization order_number: test_order_number
@@ -130,6 +101,16 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
     authorize = response.params['response']
     expect(authorize.key.include?('aut-')).to be(true)
+
+    fraud_status = ""
+    while fraud_status != "approved"
+      print "Waiting 5 seconds for fraud review... ".yellow
+      sleep(5)
+      fraud_status = gateway.flow_get_fraud_status(test_order_number)
+      puts fraud_status.yellow
+    end
+    puts "Sleeping again for event to sync".yellow
+    sleep(5)
   end
 
   it 'fails on bad authorize requests' do
@@ -156,36 +137,23 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     response
   end
 
-  it 'captures funds or creates purchase (authorize and cappture in one step)' do
-    puts 'Please choose'.yellow
-    puts ' 1. test capture method'
-    puts ' 2. test purchase method'
-    print 'Choice: '
+  it 'captures funds' do
+    authorization = gateway.flow_get_authorization order_number: test_order_number
+    response      = gateway.capture test_amount, authorization.key, currency: test_currency
+    expect(response.success?).to be(true)
 
-    if $stdin.gets.chomp.to_i == 1
-      authorization = gateway.flow_get_authorization order_number: test_order_number
-      response      = gateway.capture test_amount, authorization.key, currency: test_currency
+    capture       = response.params['response']
 
-      puts "===================== authorization"
-      puts authorization.inspect
-      puts "===================== capture"
-      puts response.inspect
-      puts "====================="
-      raise "Foo"
+    expect(capture.nil?).to be(false)
+    expect(capture.key.include?('cap-')).to be_truthy
+    expect(capture.authorization.key).to eq(authorization.key)
+    expect(capture.status.value).to eq('succeeded')
+  end
 
-      expect(response.success?).to be(true)
-
-      capture       = response.params['response']
-
-      expect(capture.nil?).to be(false)
-      expect(capture.key.include?('cap-')).to be_truthy
-      expect(capture.authorization.key).to eq(authorization.key)
-      expect(capture.status.value).to eq('succeeded')
-    else
-      purchase = gateway.purchase credit_card, test_order_number, currency: test_currency, amount: test_amount
-      expect(purchase.success?).to be_truthy
-      expect(purchase.params['response'].key.include?('cap-')).to be true
-    end
+  xit 'creates purchase (authorize and cappture in one step)' do
+    purchase = gateway.purchase credit_card, test_order_number, currency: test_currency, amount: test_amount
+    expect(purchase.success?).to be_truthy
+    expect(purchase.params['response'].key.include?('cap-')).to be true
   end
 
   it 'refunds the transaction by authorization_id' do
