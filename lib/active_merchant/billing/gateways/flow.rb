@@ -85,6 +85,7 @@ module ActiveMerchant
           capture_form = ::Io::Flow::V0::Models::CaptureForm.new body
           response     = flow_instance.captures.post @flow_organization, capture_form
         rescue => exception
+          puts "=======================> #{exception.inspect}"
           error_response exception
         end
 
@@ -202,7 +203,7 @@ module ActiveMerchant
       # pushes all subsequent authorizations from status "review" to "authorized"
       # takes ~ 60 seconds
       def flow_submission_by_number order_number
-        flow_instance.orders.put_submissions_by_number @flow_organization, order_number
+        flow_instance.orders.put_submissions_by_number @flow_organization, order_number, {}
       rescue => exception
         error_response exception
       end

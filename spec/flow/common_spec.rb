@@ -21,11 +21,11 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   let(:raw_credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
     {
-      first_name:          'Dino',
-      last_name:           'Reic',
+      first_name:          'Ruby',
+      last_name:           'Active',
       number:              '4111111111111111',
       month:               '8',
-      year:                2020,
+      year:                2023,
       verification_value:  '737'
     }
   }
@@ -38,19 +38,19 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     {
       "items": [
         {
-          "number": "sku-1",
-          "quantity": 15,
-          "center": "center-2dffd30d-2459-4937-aa4e-2647bf171867"
+          "number": "sku-101",
+          "quantity": 1,
+          "center": "default"
         }
       ],
       "customer": {
         "number": "client-user-123",
         "name": {
-          "first": "Dino",
-          "last": "Reic"
+          "first": "Ruby",
+          "last": "Active"
         },
         "phone": "+1-646-813-9414",
-        "email": "dino.reic@test.flow.io"
+        "email": "activemerchant@test.flow.io"
       },
       "destination": {
         "streets": ["129 City Rd"],
@@ -80,15 +80,14 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   it 'creates and subscribes an order (60 wait time)' do
     if $choice == 1
-      order      = gateway.flow_create_order order_create_body, experience: "australia"
-      expect(order.number.include?('ord-')).to be(true)
+      order      = gateway.flow_create_order order_create_body, experience: "united-kingdom-3"
+      expect(order.id.include?('ord-')).to be(true)
 
       puts ' Order number: %s (enter in .env)' % order.number.yellow
       puts ' Please wait ~ 60 seconds for order to be approved.'
 
       submission = gateway.flow_submission_by_number order.number
       expect(order.number).to eq(submission.number)
-
       exit
     else
       print '  skipping'
@@ -166,6 +165,13 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     if $stdin.gets.chomp.to_i == 1
       authorization = gateway.flow_get_authorization order_number: test_order_number
       response      = gateway.capture test_amount, authorization.key, currency: test_currency
+
+      puts "===================== authorization"
+      puts authorization.inspect
+      puts "===================== capture"
+      puts response.inspect
+      puts "====================="
+      raise "Foo"
 
       expect(response.success?).to be(true)
 
