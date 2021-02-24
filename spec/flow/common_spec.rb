@@ -37,6 +37,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   test_order_number = nil
 
+  test_capture = nil
+
   before(:all) do
     order_create_body = {
       "items": [
@@ -56,7 +58,8 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
       }
     }
 
-    order = gateway.flow_create_order order_create_body, experience: "united-kingdom-3"
+    order_form = ::Io::Flow::V0::Models::OrderForm.new(order_create_body)
+    order = gateway.flow_create_order order_form, experience: "world"
     submission = gateway.flow_submission_by_number order.number
     puts "Order Number: #{order.number}".yellow
     test_order_number = order.number
@@ -138,34 +141,25 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   it 'captures funds' do
     authorization = gateway.flow_get_latest_authorization order_number: test_order_number
-    response      = gateway.capture test_amount, authorization.key, currency: test_currency
-    expect(response.success?).to be(true)
-
-    capture       = response.params['response']
-
-    expect(capture.nil?).to be(false)
-    expect(capture.key.include?('cap-')).to be_truthy
-    expect(capture.authorization.key).to eq(authorization.key)
-    expect(capture.status.value).to eq('succeeded')
-  end
-
-  # TODO: FIX ME
-  xit 'refunds the transaction by authorization_id' do
-    authorization = gateway.flow_get_latest_authorization order_number: test_order_number
     response = gateway.capture test_amount, authorization.key, currency: test_currency
     expect(response.success?).to be(true)
 
     capture = response.params['response']
+
     expect(capture.nil?).to be(false)
     expect(capture.key.include?('cap-')).to be_truthy
     expect(capture.authorization.key).to eq(authorization.key)
     expect(capture.status.value).to eq('succeeded')
 
-    response = gateway.refund test_amount, capture.id, currency: test_currency
+    test_capture = capture
+  end
+
+  it 'refunds the transaction by authorization_id' do
+    response = gateway.refund test_amount, test_capture.id, currency: test_currency
     expect(response.success?).to be_truthy
     expect(response.params['response'].key.include?('ref-')).to be(true)
 
-    bad_response = gateway.refund(nil, capture.id)
+    bad_response = gateway.refund(nil, test_capture.id)
     expect(bad_response.success?).to be(false)
   end
 
