@@ -42,25 +42,24 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   test_capture = nil
 
   before(:all) do
-    order_create_body = {
-      "items": [
-        { "number": "sku-101", "quantity": 1, "center": "default" }
+    order_form = ::Io::Flow::V0::Models::OrderForm.new(
+      items: [
+        ::Io::Flow::V0::Models::LineItemForm.new(number: "sku-101", quantity: 1, center: "default")
       ],
-      "customer": {
-        "number": "client-user-123",
-        "name": { "first": "Ruby", "last": "Active" },
-        "phone": "+1-646-813-9414",
-        "email": "activemerchant@test.flow.io"
-      },
-      "destination": {
-        "streets": ["129 City Rd"],
-        "city": "London",
-        "postal": "EC1V 1JB",
-        "country": "GBR"
-      }
-    }
+      customer: ::Io::Flow::V0::Models::OrderCustomerForm.new(
+        number: "client-user-123",
+        phone: "+1-646-813-9414",
+        email: "activemerchant@test.flow.io",
+        name: ::Io::Flow::V0::Models::Name.new(first: "Ruby", last: "Active")
+      ),
+      destination: ::Io::Flow::V0::Models::OrderAddress.new(
+        streets: ["129 City Rd"],
+        city: "London",
+        postal: "EC1V 1JB",
+        country: "GBR"
+      )
+    )
 
-    order_form = ::Io::Flow::V0::Models::OrderForm.new(order_create_body)
     order = gateway.flow_create_order order_form, experience: "world"
     submission = gateway.flow_submission_by_number order.number
     puts "Order Number: #{order.number}".yellow
