@@ -74,9 +74,9 @@ module ActiveMerchant
       end
 
       # https://docs.flow.io/module/payment/resource/authorizations#get-organization-authorizations
-      def flow_get_authorization order_number:
-        response = flow_instance.authorizations.get @flow_organization, order_number: order_number
-        response.last
+      def flow_get_latest_authorization order_number:
+        response = flow_instance.authorizations.get @flow_organization, order_number: order_number, order_by: "-created_at"
+        response.first
       rescue => exception
         error_response exception
       end

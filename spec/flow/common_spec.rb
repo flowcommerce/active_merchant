@@ -130,14 +130,14 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   end
 
   it 'get flow authorization from order_number' do
-    response = gateway.flow_get_authorization order_number: test_order_number
+    response = gateway.flow_get_latest_authorization order_number: test_order_number
     expect(response.key.include?('aut-')).to be_truthy
     expect(['review', 'authorized'].include?(response.result.status.value)).to be_truthy
     response
   end
 
   it 'captures funds' do
-    authorization = gateway.flow_get_authorization order_number: test_order_number
+    authorization = gateway.flow_get_latest_authorization order_number: test_order_number
     response      = gateway.capture test_amount, authorization.key, currency: test_currency
     expect(response.success?).to be(true)
 
@@ -151,7 +151,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   # TODO: FIX ME
   xit 'refunds the transaction by authorization_id' do
-    authorization = gateway.flow_get_authorization order_number: test_order_number
+    authorization = gateway.flow_get_latest_authorization order_number: test_order_number
     response = gateway.capture test_amount, authorization.key, currency: test_currency
     expect(response.success?).to be(true)
 
