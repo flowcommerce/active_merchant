@@ -48,7 +48,6 @@ module ActiveMerchant
           return error_response 'Discriminator [%s] not found, please choose one [%s]' % [opts[:discriminator], FORM_TYPES.join(', ')]
         end
 
-        # TODO: convert to ::Io::Flow::V0::Models::AuthorizationForm
         body = {
           amount:        opts[:amount] || 0.0,
           currency:      opts[:currency],
@@ -108,18 +107,9 @@ module ActiveMerchant
         error_response exception
       end
 
-      # TODO: this should be POST authorizations and POST captures in one step
-      # but how do we do this if we need to wait for fraud approval?
+      # TODO: not yet supported
       def purchase credit_card, order_number, options={}
-        auth_response = flow_get_authorization order_number: order_number
-
-        if auth_response
-          capture options[:amount], auth_response.key, options
-        else
-          error_response 'No authorization for order: %s' % order_number
-        end
-      rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response exception
+        error_response "Not yet supported"
       end
 
       # https://docs.flow.io/module/payment/resource/reversals#post-organization-reversals
