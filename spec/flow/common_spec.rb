@@ -9,8 +9,10 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   let(:test_currency) { 'USD' }
   let(:test_amount)   { 0.1 }
 
-  # init Flow with default ENV flow key names
-  gateway = ActiveMerchant::Billing::FlowGateway.new(token: ENV.fetch('FLOW_API_KEY'), organization: ENV.fetch('FLOW_ORGANIZATION'))
+  # token and organization_id are set in env variables
+  # FLOW_API_KEY
+  # FLOW_ORGANIZATION
+  gateway = ActiveMerchant::Billing::FlowGateway.new
 
   let(:raw_credit_card) {
     # The card verification value is also known as CVV2, CVC2, or CID
