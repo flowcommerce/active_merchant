@@ -56,17 +56,27 @@ module ActiveMerchant
           order_number:  order_number
         }
 
-        response = flow_instance.authorizations.post @flow_organization, body
+        authorization_form = ::Io::Flow::V0::Models::AuthorizationForm.from_json(body)
+        response = flow_instance.authorizations.post @flow_organization, authorization_form
 
         Response.new true, 'Flow authorize - Success', { response: response }, { authorization: response.id }
       rescue => exception
         error_response exception
       end
 
+      def flow_get_fraud_status(order_number)
+        begin
+          response = flow_instance.orders.get_status_and_fraud_by_number @flow_organization, order_number
+          response.status.value
+        rescue => exception
+          exception.message
+        end
+      end
+
       # https://docs.flow.io/module/payment/resource/authorizations#get-organization-authorizations
-      def flow_get_authorization order_number:
-        response = flow_instance.authorizations.get @flow_organization, order_number: order_number
-        response.last
+      def flow_get_latest_authorization order_number:
+        response = flow_instance.authorizations.get @flow_organization, order_number: order_number, order_by: "-created_at"
+        response.first
       rescue => exception
         error_response exception
       end
@@ -97,16 +107,9 @@ module ActiveMerchant
         error_response exception
       end
 
+      # TODO: not yet supported
       def purchase credit_card, order_number, options={}
-        auth_response = flow_get_authorization order_number: order_number
-
-        if auth_response
-          capture options[:amount], auth_response.key, options
-        else
-          error_response 'No authorization for order: %s' % order_number
-        end
-      rescue Io::Flow::V0::HttpClient::ServerError => exception
-        error_response exception
+        error_response "Not yet supported"
       end
 
       # https://docs.flow.io/module/payment/resource/reversals#post-organization-reversals
@@ -170,16 +173,16 @@ module ActiveMerchant
             raise 'Unsuported store method input type [%s]' % input.class
         end
 
-        data = {    number: credit_card.number,
-                      name: '%s %s' % [credit_card.first_name, credit_card.last_name],
-                       cvv: credit_card.verification_value,
-           expiration_year: credit_card.year.to_i,
+        card_form = ::Io::Flow::V0::Models::CardForm.new(
+          number: credit_card.number,
+          name: '%s %s' % [credit_card.first_name, credit_card.last_name],
+          cvv: credit_card.verification_value,
+          expiration_year: credit_card.year.to_i,
           expiration_month: credit_card.month.to_i
-        }
+        )
+        card_form.address = @address if @address
 
-        data[:address] = @address if @address
-
-        response  = flow_instance.cards.post @flow_organization, data
+        response  = flow_instance.cards.post @flow_organization, card_form
 
         if response.respond_to?(:token)
           response.token
@@ -202,7 +205,7 @@ module ActiveMerchant
       # pushes all subsequent authorizations from status "review" to "authorized"
       # takes ~ 60 seconds
       def flow_submission_by_number order_number
-        flow_instance.orders.put_submissions_by_number @flow_organization, order_number
+        flow_instance.orders.put_submissions_by_number @flow_organization, order_number, {}
       rescue => exception
         error_response exception
       end
