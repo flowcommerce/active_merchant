@@ -44,7 +44,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
   before(:all) do
     order_form = ::Io::Flow::V0::Models::OrderForm.new(
       items: [
-        ::Io::Flow::V0::Models::LineItemForm.new(number: "sku-101", quantity: 1, center: "default")
+        ::Io::Flow::V0::Models::LineItemForm.new(number: "34528974504093", quantity: 1, center: "default")
       ],
       customer: ::Io::Flow::V0::Models::OrderCustomerForm.new(
         number: "client-user-123",
@@ -60,7 +60,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
       )
     )
 
-    order = gateway.flow_create_order order_form, experience: "world"
+    order = gateway.flow_create_order order_form, experience: "australia"
     submission = gateway.flow_submission_by_number order.number
     puts "Order Number: #{order.number}".yellow
     test_order_number = order.number
