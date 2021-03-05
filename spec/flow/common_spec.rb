@@ -68,22 +68,6 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
 
   ###
 
-  it 'voids (cancels) the authorization' do
-    token = get_cc_token
-
-    response = gateway.authorize token, test_order_number,
-      currency: test_currency,
-      amount: test_amount,
-      discriminator: :merchant_of_record_authorization_form
-
-    authorization = response.params['response']
-    expect(authorization.key.include?('aut-')).to be(true)
-
-    response = gateway.void test_amount, authorization.key, currency: test_currency
-    expect(response.success?).to be_truthy
-    expect(response.params['response'].key.include?('rev-')).to be(true)
-  end
-
   # test with cc as Hash or CreditCard instance
   it 'to create valid credit card token' do
     [credit_card, raw_credit_card].each do |cc|
@@ -164,5 +148,24 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
     expect(bad_response.success?).to be(false)
   end
 
+
+  it 'voids (cancels) the authorization' do
+    puts "Sleeping again for events to sync".yellow
+    sleep(5)
+
+    token = get_cc_token
+
+    response = gateway.authorize token, test_order_number,
+      currency: test_currency,
+      amount: test_amount,
+      discriminator: :merchant_of_record_authorization_form
+
+    authorization = response.params['response']
+    expect(authorization.key.include?('aut-')).to be(true)
+
+    response = gateway.void test_amount, authorization.key, currency: test_currency
+    expect(response.success?).to be_truthy
+    expect(response.params['response'].key.include?('rev-')).to be(true)
+  end
 
 end
