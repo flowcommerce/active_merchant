@@ -56,6 +56,7 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
         streets: ["600 George St"],
         city: "Sydney",
         postal: "2000",
+        province: "NSW",
         country: "AUS"
       )
     )
