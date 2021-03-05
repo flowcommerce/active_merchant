@@ -53,10 +53,10 @@ RSpec.describe ActiveMerchant::Billing::FlowGateway do
         name: ::Io::Flow::V0::Models::Name.new(first: "Ruby", last: "Active")
       ),
       destination: ::Io::Flow::V0::Models::OrderAddress.new(
-        streets: ["129 City Rd"],
-        city: "London",
-        postal: "EC1V 1JB",
-        country: "GBR"
+        streets: ["600 George St"],
+        city: "Sydney",
+        postal: "2000",
+        country: "AUS"
       )
     )
 
