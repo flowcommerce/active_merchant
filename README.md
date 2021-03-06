@@ -22,13 +22,6 @@ Gem requires Ruby version ```>= 2.2.2.```
 
 	```FLOW_API_KEY``` and ```FLOW_ORGANIZATION```
 
-	For testing you can use Flow sandbox values
-
-	```
-	FLOW_ORGANIZATION='playground'
-	FLOW_API_KEY='HlGgfflLamiTQJ'
-	```
-
 1. Clone the repository
 
 	```git clone https://github.com/flowcommerce/active_merchant.git```
